@@ -83,6 +83,7 @@ class Class_eval(object):
     def roc_curve(self, legend_lab='', **kwargs):
         """
         Plotting roc_curve.
+        Positive class is class 1, or the class that would be 1 if no labels.
         
         TODO:
          - Multi class: http://scikit-learn.org/stable/auto_examples/model_selection/plot_roc.html 
@@ -147,6 +148,53 @@ class Class_eval(object):
         
         
         
-class Class_ensamble(object):
-    def __init__(self):
-        raise NotImplemented
+class Class_eval_ensemble(object):
+    """
+    Class for working with multiple binary classifiers.
+    Each classifiers should only contain the probability for class 1.
+    
+    true: true labels.
+    classifiers: list of classifiers (probabilities).
+    labels: labels of classes.
+    names: names of classifiers.
+    ids: list of ids for each datapoint.
+    """
+    def __init__(self, true, classifiers, labels=None, names=None, ids=None):
+        self.true = true
+        # Implement test to see if classifiers are of correct format
+        self.classifiers = classifiers
+        self.labels = labels
+        self.names = names
+        self.ids = ids
+        self._to_dataframe()
+        self._start_class = self.df.shape[1] - len(self.classifiers)
+    def _to_dataframe(self):
+        """Make pd.DataFrame"""
+        df_true = pd.DataFrame(self.true, columns=['true'])
+        cl_list = [pd.DataFrame(cl) for cl in self.classifiers]
+        self.df = pd.concat([df_true] + cl_list, axis=1)
+        if self.names is not None:
+            self.df.columns = ['true'] + self.names
+        if self.ids is not None:
+            self.df['id'] = self.ids
+            cols = self.df.columns.tolist()
+            self.df = self.df[cols[-1:] + cols[:-1]]
+    def _series_to_Class_eval(self, series):
+        """Returns Class_eval object from results."""
+        df = pd.concat([1-series, series], axis=1)
+        return Class_eval(self.true, df.as_matrix(), self.labels, self.ids)
+    def _predict_average(self):
+        """Predict using average over ensamble."""
+        average = self.df.iloc[:, self._start_class:].mean(axis=1)
+        return self._series_to_Class_eval(average)
+    def _predict_max(self):
+        """Predict using max over ensamble."""
+        max = self.df.iloc[:, self._start_class:].max(axis=1)
+        return self._series_to_Class_eval(max)
+    def predict(self, rule='average'):
+        """
+        Do predictions of ensemble.
+        rule: average, max, multiplication, vote, etc...
+        """
+        if rule == 'average': return self._predict_average()
+        if rule == 'max': return self._predict_max()
