@@ -154,7 +154,7 @@ class Class_eval_ensemble(object):
     Each classifiers should only contain the probability for class 1.
     
     true: true labels.
-    classifiers: list of classifiers (probabilities).
+    classifiers: list of classifiers (probabilities for class 1).
     labels: labels of classes.
     names: names of classifiers.
     ids: list of ids for each datapoint.
