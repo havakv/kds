@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(name='kds',
       version='0.0',
-      description='Helper functions from data science',
+      description='Helper functions for data science',
       author='Haavard Kvamme',
       license='MIT',
       packages=['kds'],
