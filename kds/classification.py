@@ -48,9 +48,8 @@ class Class_eval(object):
         """
         assert df.__class__ == pd.core.frame.DataFrame
         labels = df.columns[1:3]
-        ids = df.id if 'id' in df.columns else None
-        return cls(df.true.as_matrix(), df.iloc[:, 1:3].as_matrix(), labels,
-                   ids.as_matrix())
+        ids = df.id.as_matrix() if 'id' in df.columns else None
+        return cls(df.true.as_matrix(), df.iloc[:, 1:3].as_matrix(), labels, ids)
         
     def classification_report(self, treshold=0.5):
         """
