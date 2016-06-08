@@ -99,7 +99,7 @@ class Class_eval(object):
         plt.xlabel('false positive rate')
         plt.legend(loc="lower right")
     
-    def bar_prob(self, label, nb_bins=20, ref_line=True, counts=True, ax=None):
+    def bar_prob(self, label, nb_bins=20, ref_line=True, counts=True, ax=None, title=True):
         """
         Bar chart with estimated probabilities vs. class proportions.
         """
@@ -115,7 +115,8 @@ class Class_eval(object):
         ax = ax if ax else plt.subplots()[1]
         ax.bar(props.index, props, width=bins[1], align='center', color='grey', 
                label='prop', zorder=3)
-        plt.title(label)
+        if title:
+            plt.title(label)
         if ref_line:
             ax.plot([0, 1], [0, 1], 'k--', label='reference', zorder=3)
         ax.set_xlabel('prob est')
@@ -131,9 +132,15 @@ class Class_eval(object):
     def add_description(description):
         """Add text description to object"""
         self.description = description
-    
-    def save_to_file(filename):
-        raise NotImplemented
+
+    def to_pickle(self, filename):
+        """Pickle the dataframe."""
+        self.df.to_pickle(filename)
+
+    @staticmethod
+    def read_pickle(filename):
+        """Read pickled object."""
+        return Class_eval.from_df(pd.read_pickle(filename))
     
     def query(self, q, *args, **kwargs):
         """
