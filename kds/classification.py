@@ -166,6 +166,7 @@ class Class_eval(object):
         return Class_eval.from_df(self.df.query(q, *args, **kwargs))
     
     def subset_by_ids(self, ids):
+        """Return Class_eval object only containing relevant ids."""
         return Class_eval.from_df(self.df[self.df.id.isin(ids)])
         
         
