@@ -141,6 +141,23 @@ class Class_eval(object):
         """Read pickled object."""
         return Class_eval.from_df(pd.read_pickle(filename))
     
+    def to_hdf(self, path_or_buf, key='df', **kwargs):
+        """
+        Store using hdf5. 
+        path_or_buf : the path (string) of HDFStore object.
+        key : string identifier for the group in the store.
+        See pandas documentation.
+        """
+        self.df.to_hdf(path_or_buf, key, **kwargs)
+
+    @staticmethod
+    def read_hdf(path_or_buf, key=None, **kwargs):
+        """Read hdf5 file. 
+        path_or_buf : path (string), or buffer to read from.
+        key : group identifier in the store. Can be omitted a HDF file contains a single pandas object.
+        See pandas documentation."""
+        return Class_eval.from_df(pd.read_hdf(path_or_buf, key, **kwargs))
+
     def query(self, q, *args, **kwargs):
         """
         Use pandas query to subset data.
