@@ -107,6 +107,10 @@ class Weights_each_batch(keras.callbacks.Callback):
     def on_train_begin(self, logs={}):
         """Function called by kera's fit function.
         """
+        self.weights = []
+        self.weights_diff = None
+        self.scale_stats = None
+        super(Weights_each_batch, self).__init__()
         if self.layer_names is not None:
             self.layer_dict = {layer.name: layer for layer in self.layers}
         self._append_weights()
@@ -184,6 +188,11 @@ class Weights_each_batch(keras.callbacks.Callback):
 
     def bar_mean_scale_stats(self, y='ratio', title='set_title', **kwargs):
         """Bar plot over average scale stats.
+        The stats are the 2-norm over the weights (norm_w), the difference in the updated weights (norm_diff),
+        and the ration between the two (ratio) (norm_diff/norm_w).
+        See function get_scale_stats for further explanation.
+
+        y : columns in self.scale_stats we want to plot.
         """
         if title == 'set_title':
             title = 'Average ' + y
