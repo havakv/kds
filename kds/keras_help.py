@@ -43,7 +43,7 @@ class Model_activations(object):
     """
     def __init__(self, model):
         self.model = model
-        self.model_input = model.flattened_layers[0].input
+        self.model_input = model.layers[0].input
         self.layer_models = None
         self.layer_models_dict = None
 
@@ -51,8 +51,8 @@ class Model_activations(object):
         """
         Builds one model for each layer in the model, so we can get output in each layer.
         """
-        self.layer_models = [Model(input=self.model_input, output=layer.output) for layer in self.model.flattened_layers]
-        self.layer_models_dict = {model.flattened_layers[-1].name: model for model in self.layer_models}
+        self.layer_models = [Model(input=self.model_input, output=layer.output) for layer in self.model.layers]
+        self.layer_models_dict = {model.layers[-1].name: model for model in self.layer_models}
 
     def get_output(self, X, layer_names=None):
         """
@@ -93,7 +93,7 @@ class Weights_each_batch(keras.callbacks.Callback):
         """
         if self.layer_names is None: # get all trainable weights
             weights = []
-            for layer in self.model.flattened_layers:
+            for layer in self.model.layers:
                 w_list = [keras.backend.get_value(w) for w in layer.trainable_weights]
                 weights.append((layer, w_list))
             self.weights.append(weights)
@@ -163,7 +163,7 @@ class Weights_each_batch(keras.callbacks.Callback):
         dfs = []
         for it, stats_iter in enumerate(stats):
             dfs_iter = []
-            for layer_stats, layer in zip(stats_iter, self.model.flattened_layers):
+            for layer_stats, layer in zip(stats_iter, self.model.layers):
                 df = pd.DataFrame(layer_stats, columns=('norm_w', 'norm_diff', 'ratio'))
                 df['weight_name'] = [str(w) for w in layer.trainable_weights]
                 df['layer'] = layer.name
@@ -206,7 +206,7 @@ def show_model_weight_shapes(model):
     """Function for printing a keras model, and its weight shapes.
     """
     # for layer in model.layers:
-    for layer in model.flattened_layers:
+    for layer in model.layers:
         print('----', layer.name)
         for w in layer.trainable_weights:
             print(w, ':', keras.backend.get_value(w).shape)
@@ -215,7 +215,7 @@ def show_model_weight_shapes(model):
 def show_model_layer_input_output_shapes(model):
     """Function for printing a keras model, and each layer's input and output shape.
     """
-    for layer in model.flattened_layers:
+    for layer in model.layers:
         print('----', layer.name)
         print('input_shape  :', layer.input_shape)
         print('output_shape :', layer.output_shape)
