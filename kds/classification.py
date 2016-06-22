@@ -2,6 +2,7 @@
 Some helper functions for evaluating classification performance.
 """
 
+from __future__ import print_function
 from sklearn.metrics import classification_report, roc_curve, auc
 import pandas as pd
 import numpy as np
@@ -63,8 +64,9 @@ class Class_eval(object):
          - Add *args and **kwargs.
          - Use dataframe.
         """
-        print classification_report(self.true, self.probs[:, 0] < (1-treshold), 
-                                     target_names=self.labels)
+        print(classification_report(self.true, self.probs[:, 0] < (1-treshold), 
+                                     target_names=self.labels))
+
     def hist_prob(self, labels=None, bins=20, **kwargs):
         """Give histograms of probabilities in labels."""
         ax = self.df.hist(labels, bins=bins, **kwargs)
