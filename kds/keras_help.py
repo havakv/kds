@@ -79,9 +79,10 @@ class Weights_each_batch(keras.callbacks.Callback):
     weights.hist_scale_stats('ratio')
     print(weights.scale_stats.groupby('weight_name').ratio.mean.max())
     """
-    def __init__(self, layer_names=None):
+    def __init__(self, layer_names=None, store_all=False):
         if layer_names is not None: assert hasattr(layer_names, '__iter__')
         self.layer_names = layer_names
+        self.store_all = store_all
         self.layer_dict = None
         self.weights = []
         self.weights_diff = None
@@ -96,13 +97,14 @@ class Weights_each_batch(keras.callbacks.Callback):
             for layer in self.model.layers:
                 w_list = [keras.backend.get_value(w) for w in layer.trainable_weights]
                 weights.append((layer, w_list))
-            self.weights.append(weights)
+            # self.weights.append(weights)
         else:
             weights = []
             for layer in self.layer_names:
                 w_list = [keras.backend.get_value(w) for w in self.layer_dict[layer].trainable_weights]
                 weights.append((layer, w_list))
-            self.weights.append(weights)
+            # self.weights.append(weights)
+        self.weights.append(weights)
 
     def on_train_begin(self, logs={}):
         """Function called by kera's fit function.
@@ -111,24 +113,52 @@ class Weights_each_batch(keras.callbacks.Callback):
         self.weights_diff = None
         self.scale_stats = None
         super(Weights_each_batch, self).__init__()
+
         if self.layer_names is not None:
             self.layer_dict = {layer.name: layer for layer in self.layers}
+        if not self.store_all:
+            self._scale_stats_list = []
+            self.weights_diff = []
         self._append_weights()
 
     def on_batch_end(self, batch, logs={}):
         """Function called by kera's fit function.
         """
         self._append_weights()
+        if not self.store_all:
+            self.weights_diff.append(self._make_diff_batch(self.weights[0], self.weights[1]))
+            scale_stats = self._get_scale_stats_batch(self.weights[0], self.weights_diff[0])
+            self._scale_stats_list.append(scale_stats)
+            self._delete_prev_iteration()
+
+    def _make_diff_batch(self, weights_prev, weights_curr):
+        """Based on the previous and current weights, compute the difference between them.
+        """
+        weights_diff = []
+        for lay_p, lay_c in zip(weights_prev, weights_curr):
+            weights_diff.append((lay_p[0], [wc - wp for wp, wc in zip(lay_p[1], lay_c[1])]))
+        # self.weights_diff.append(weights_diff)
+        return weights_diff
+
+    def _delete_prev_iteration(self):
+        """Delete weights no longer needed.
+        """
+        assert self.store_all == False, 'Should only be used when store_all=False'
+        self.weights.pop(0)
+        self.weights_diff.pop(0)
+
 
     def make_diff(self):
         """Make self.weights_diff to be  the difference between weights in each iterations.
         """
+        assert self.store_all, 'Need to be run with store_all=True'
         self.weights_diff = []
         for prev, curr in zip(self.weights[:-1], self.weights[1:]):
-            weights_diff = []
-            for lay_p, lay_c in zip(prev, curr):
-                weights_diff.append((lay_p[0], [wc - wp for wp, wc in zip(lay_p[1], lay_c[1])]))
-            self.weights_diff.append(weights_diff)
+            # weights_diff = []
+            # for lay_p, lay_c in zip(prev, curr):
+                # weights_diff.append((lay_p[0], [wc - wp for wp, wc in zip(lay_p[1], lay_c[1])]))
+            # self.weights_diff.append(weights_diff)
+            self.weights_diff.append(self._make_diff_batch(prev, curr))
 
     def _get_scale_stats_list(self):
         """Returns the 2-norm of the unraveled weights, their update and the ratio norm(update)/norm(weights).
@@ -163,7 +193,10 @@ class Weights_each_batch(keras.callbacks.Callback):
         norm_diff : 2-norm of difference between weighs before and after iteration.
         ratio : norm_diff / norm_w
         """
-        stats = self._get_scale_stats_list()
+        if self.store_all:
+            stats = self._get_scale_stats_list()
+        else:
+            stats = self._scale_stats_list
         dfs = []
         for it, stats_iter in enumerate(stats):
             dfs_iter = []
@@ -224,6 +257,8 @@ def show_model_weight_shapes(model):
 def show_model_layer_input_output_shapes(model):
     """Function for printing a keras model, and each layer's input and output shape.
     """
+    print('Should rather use model.summary() function!!!!!!!!!!!!!')
+    print('')
     for layer in model.layers:
         print('----', layer.name)
         print('input_shape  :', layer.input_shape)
