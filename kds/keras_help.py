@@ -210,28 +210,39 @@ class Weights_each_batch(keras.callbacks.Callback):
         self.scale_stats = pd.concat(dfs).reset_index().iloc[:, 1:]
         return self.scale_stats
 
-    def hist_scale_stats(self, column=['ratio'], *args, **kwargs):
+    def hist_scale_stats(self, column=['ratio'], query=None, **kwargs):
         """Histograms for displaying scale stats over all batches.
         *args, and **kwargs are passed to the histogram function.
         By passing only the name 'norm_w', 'norm_diff' or 'ratio', only the relevant plots are created.
+
+        query: A query to self.scale_stats (pd.DataFrame). Useful for displaying subset of iterations.
+            Example: query='iteration == 5'.
         """
         if self.scale_stats is None:
             self.get_scale_stats()
-        return self.scale_stats.hist(column=column, *args, **kwargs)
+        if query is not None:
+            return self.scale_stats.query(query).hist(column=column, **kwargs)
+        return self.scale_stats.hist(column=column, **kwargs)
 
-    def bar_mean_scale_stats(self, y='ratio', title='set_title', **kwargs):
+    def bar_mean_scale_stats(self, y='ratio', query=None, title='set_title', **kwargs):
         """Bar plot over average scale stats.
         The stats are the 2-norm over the weights (norm_w), the difference in the updated weights (norm_diff),
         and the ration between the two (ratio) (norm_diff/norm_w).
         See function get_scale_stats for further explanation.
 
         y : columns in self.scale_stats we want to plot.
+        query: A query to self.scale_stats (pd.DataFrame). Useful for displaying subset of iterations.
+            Example: query='iteration == 5'.
         """
         if title == 'set_title':
             title = 'Average ' + y
         if self.scale_stats is None:
             self.get_scale_stats()
-        return self.scale_stats.groupby('weight_name').mean().reset_index()\
+
+        stats = self.scale_stats
+        if query is not None:
+            stats = stats.query(query)
+        return stats.groupby('weight_name').mean().reset_index()\
                 .plot(x='weight_name', y=y, kind='bar', title=title, **kwargs)
 
     def look_for_small_and_large_updates(self, relative=True):
