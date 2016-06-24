@@ -251,6 +251,14 @@ class Weights_each_batch(keras.callbacks.Callback):
         """
         pass
 
+class Store_predictions(keras.callbacks.Callback):
+    """Store predictions every epoch.
+    """
+    def on_train_begin(self, logs={}):
+        self.predictions = []
+    def on_epoch_end(self, epoch, logs={}):
+        self.predictions.append(self.model.predict(self.model.validation_data[0]))
+
 
                 
 
