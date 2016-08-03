@@ -3,7 +3,7 @@ Some helper functions for evaluating classification performance.
 """
 
 from __future__ import print_function
-from sklearn.metrics import classification_report, roc_curve, auc
+from sklearn.metrics import classification_report, roc_curve, auc, precision_recall_fscore_support
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,9 +15,9 @@ class Class_eval(object):
     Class for evaluating a classifier.
     
     TODO:
-     - Consider inherit from pandas
-     - Include multi-class classifiers.
-     - Include option for classifiers that don't give probabilities.
+     - Make construction more general. Should be able to take shape
+            (samples, 2), (samples, 1), (samples,), and (samples)
+     - Include multi-class classifiers. 
      - Handle named vectors as well as int vectors.
      - Add better colors.
      - Add child class that have multiple predictions, so we can evaluate uncertainty of probabilities.
@@ -27,6 +27,9 @@ class Class_eval(object):
         assert probs.shape[1] == 2 # Currently only works for binary classification
         self.probs = probs
         self.labels = labels
+        if self.labels is None:
+            self.labels = ['0', '1']
+        self.target_name = self.labels[1]
         self.ids = ids
         self.description = None
         self._to_dataframe()
@@ -58,14 +61,24 @@ class Class_eval(object):
         
         TODO:
          - Include option to remove f1-score (and replace with other metrics?).
-         - Include option to use proportions instaed of support.
-         - Include option to choose treshold that balances recall.
+         - Include option to use proportions instead of support.
+         - Include option to choose threshold that balances recall.
          - Include option to write latex table.
          - Add *args and **kwargs.
          - Use dataframe.
         """
         print(classification_report(self.true, self.probs[:, 0] < (1-treshold), 
                                      target_names=self.labels))
+
+    def precision_recall_fscore_support(self, treshold=0.5, **kwargs):
+        """See sklearn.metrics.precision_recall_fscore_support.
+        **kwargs: passed to sklearn.metrics.precision_recall_fscore_support.
+        """
+        pred = (self.df[self.target_name] > treshold).astype(int)
+        p, r, f, s =  precision_recall_fscore_support(self.df.true, pred, **kwargs)
+        results = pd.DataFrame({'precision': p, 'recall': r, 'f1_score': f, 'support': s},
+                index=self.labels, columns=['precision', 'recall', 'f1_score', 'support'])
+        return results
 
     def hist_prob(self, labels=None, bins=20, **kwargs):
         """Give histograms of probabilities in labels."""
