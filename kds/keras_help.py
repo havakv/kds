@@ -254,10 +254,16 @@ class Weights_each_batch(keras.callbacks.Callback):
 class Store_predictions(keras.callbacks.Callback):
     """Store predictions every epoch.
     """
+    # def __init__(self):
+        # self.nb_inputs = len(self.model.input_shape)
+        # super(Store_predictions, self).__init__()
+
     def on_train_begin(self, logs={}):
+        self.nb_inputs = len(self.model.input_shape)
         self.predictions = []
+
     def on_epoch_end(self, epoch, logs={}):
-        self.predictions.append(self.model.predict(self.model.validation_data[0]))
+        self.predictions.append(self.model.predict(self.model.validation_data[:self.nb_inputs]))
 
 
                 
