@@ -259,7 +259,7 @@ class Store_predictions(keras.callbacks.Callback):
         # super(Store_predictions, self).__init__()
 
     def on_train_begin(self, logs={}):
-        self.nb_inputs = len(self.model.input_shape)
+        self.nb_inputs = len(self.model.input_shape) if self.model.input_shape.__class__ == list else 1
         self.predictions = []
 
     def on_epoch_end(self, epoch, logs={}):
