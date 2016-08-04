@@ -47,7 +47,7 @@ class Grid_scores(object):
 
     def violinplot_all(self, cols=2, figsize=None, **kwargs):
         """Plot seaborn.violinplot of mean_validation_scores against all parameters."""
-        rows = self.nb_parameters / cols + self.nb_parameters % cols
+        rows = self.nb_parameters / cols + (self.nb_parameters % cols > 0)
         fig, axs = plt.subplots(rows, cols, figsize=figsize)
         for name, ax in zip(self.parameter_names, axs.flatten()):
             self.violinplot(name, ax=ax, **kwargs)
