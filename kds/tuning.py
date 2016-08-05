@@ -52,6 +52,28 @@ class Grid_scores(object):
         for name, ax in zip(self.parameter_names, axs.flatten()):
             self.violinplot(name, ax=ax, **kwargs)
 
+    def pairgrid(self, vars='all', size=2.5):
+        """Plot seaborn.PairGrid for the tuning parameters.
+        !!!! Does not work for categorical variables!!!!!!!
+        vars: list of variable names. If 'all' then all are plotted.
+        **kwargs: passed to sns.pariplot.
+        """
+        if not hasattr(self, 'parameter_df'):
+            self.get_parameter_df()
+        if vars == 'all': vars = self.parameter_names
+        parameter_df_notnull = self.parameter_df.loc[self.parameter_df.notnull().all(axis=1)]
+
+        g = sns.PairGrid(parameter_df_notnull, vars=vars, size=size)
+        cmap = sns.diverging_palette(220, 20, sep=20, as_cmap=True)
+        c = parameter_df_notnull.mean_validation_score
+        # g.map(plt.scatter, c=c, cmap=cmap)
+        g.map_upper(plt.scatter, c=c, cmap=cmap)
+        g.map_lower(sns.kdeplot, c=c, cmap=cmap)
+        g.map_diag(plt.hist)
+        # g.map_diag(plt.scatter, c=c, cmap=cmap)
+        cax = g.fig.add_axes([.98, .4, .01, .2])
+        plt.colorbar(cax=cax)
+
 
 
 
