@@ -94,10 +94,13 @@ class Class_eval(object):
         fp, tp, _ = roc_curve(self.true, self.probs[:, 1])
         return auc(fp, tp)
     
-    def roc_curve(self, legend_lab='', **kwargs):
+    def roc_curve(self, legend_lab='', decimals='%0.3f', **kwargs):
         """
         Plotting roc_curve.
         Positive class is class 1, or the class that would be 1 if no labels.
+        
+        legend_lab: Name in start of legend.
+        decimals: Gives how the auc (roc area under curve) is printed.
         
         TODO:
          - Multi class: http://scikit-learn.org/stable/auto_examples/model_selection/plot_roc.html 
@@ -105,7 +108,8 @@ class Class_eval(object):
          - Use DF instead.
         """
         fp, tp, _ = roc_curve(self.true, self.probs[:, 1])
-        plt.plot(fp, tp, label=legend_lab + ' (area = %0.2f)' % auc(fp, tp), **kwargs)
+        # plt.plot(fp, tp, label=legend_lab + ' (area = %0.3f)' % auc(fp, tp), **kwargs)
+        plt.plot(fp, tp, label=legend_lab + ' (area = '+decimals % auc(fp, tp) +')', **kwargs)
         plt.plot([0, 1], [0, 1], 'k--')
         plt.xlim(-0.01, 1.01)
         plt.ylim(-0.01, 1.01)
