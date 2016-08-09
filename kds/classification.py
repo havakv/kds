@@ -24,7 +24,12 @@ class Class_eval(object):
     """
     def __init__(self, true, probs, labels=None, ids=None):
         self.true = true
-        assert probs.shape[1] == 2 # Currently only works for binary classification
+        if len(probs.shape) > 1:
+            assert len(probs.shape) == 2, 'Need 1 or 2 dim array'
+            assert probs.shape[1] == 2, 'Currently only works for binary classification'
+        else:
+            probs = probs.reshape(probs.shape[0], 1)
+            probs = np.concatenate((1-probs, probs), axis=1)
         self.probs = probs
         self.labels = labels
         if self.labels is None:
