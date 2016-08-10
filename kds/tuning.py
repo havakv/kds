@@ -84,3 +84,14 @@ grig_parameters_random_forests = {
         'min_samples_leaf': [1, 2, 5, 10],
         'max_features': ['log2', 'sqrt', None]
         }
+
+def plot_feature_importances_(rf, names, title='Feature importance', **kwargs):
+    """Plot RandomForeset features_importances_.
+    names: list of names of the features.
+    **kwargs: given to pandas.seres.plot()
+    """
+    ret = pd.DataFrame(rf.feature_importances_.reshape(1, -1), columns=names).ix[0].plot(kind='bar', **kwargs)
+    plt.title(title)
+    return ret
+    
+
