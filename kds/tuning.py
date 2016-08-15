@@ -85,7 +85,7 @@ grig_parameters_random_forests = {
         'max_features': ['log2', 'sqrt', None]
         }
 
-def plot_feature_importances_(rf, names, title='Feature importance', **kwargs):
+def plot_feature_importances_(rf, names=None, title='Feature importance', **kwargs):
     """Plot RandomForeset features_importances_.
     names: list of names of the features.
     **kwargs: given to pandas.seres.plot()
