@@ -35,7 +35,7 @@ class Class_eval(object):
         if self.labels is None:
             self.labels = ['0', '1']
         self.target_name = self.labels[1]
-        self.ids = ids
+        self.ids = np.array(ids)
         self.description = None
         self._to_dataframe()
         
@@ -46,7 +46,7 @@ class Class_eval(object):
         df_probs.columns = self.labels if self.labels is not None else np.unique(self.true)
         self.df = pd.concat([df_true, df_probs], axis=1)
         if self.ids is not None:
-            self.df['id'] = self.ids
+            self.df['id'] = self.ids # If ids are a pd.Series, this goes wrong...
     
     @classmethod
     def from_df(cls, df):
