@@ -23,7 +23,12 @@ class Class_eval(object):
      - Add child class that have multiple predictions, so we can evaluate uncertainty of probabilities.
     """
     def __init__(self, true, probs, labels=None, ids=None):
-        self.true = true
+        if len(true.shape) > 1:
+            assert len(true.shape) == 2, 'Need 1 or 2 dim array'
+            assert true.shape[1] == 2, 'Currently only works for binary classification'
+            self.true = true[:, 1]
+        else:
+            self.true = true
         if len(probs.shape) > 1:
             assert len(probs.shape) == 2, 'Need 1 or 2 dim array'
             assert probs.shape[1] == 2, 'Currently only works for binary classification'

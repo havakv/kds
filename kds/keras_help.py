@@ -9,6 +9,7 @@ from PIL import Image
 from keras.models import Model
 import keras
 import itertools
+from .classification import Class_eval
 
 
 def load_and_convert_images(filenames, size, color='L'):
@@ -251,6 +252,7 @@ class Weights_each_batch(keras.callbacks.Callback):
         """
         pass
 
+
 class Store_predictions(keras.callbacks.Callback):
     """Store predictions every epoch.
     """
@@ -265,7 +267,58 @@ class Store_predictions(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs={}):
         self.predictions.append(self.model.predict(self.model.validation_data[:self.nb_inputs]))
 
+def _roc_auc(true, predictions):
+    """Calculate ROC AUC.
+    """
+    return Class_eval(true, predictions).roc_area()
 
+
+class ModelCheckpointExt(keras.callbacks.ModelCheckpoint):
+    """An extension of Keras' ModelCheckpoint. Here we can also pass a function instead of a string.
+    Currently only works for 'val_auc' in addition to regular ModelCheckpoint arguments.
+    You can also pass a function to monitor: monitor(true, predictions), but this only works for the validation data.
+    """
+    def __init__(self, filepath, monitor='val_loss', verbose=0, save_best_only=False, 
+                save_weights_only=False, mode='auto'):
+        super(ModelCheckpointExt, self).__init__(filepath, monitor, verbose, save_best_only, 
+                save_weights_only, mode)
+        if monitor == 'val_auc':
+            self.monitor = _roc_auc 
+            if mode == 'auto':
+                self.monitor_op = np.greater
+                self.best = -np.Inf
+
+    def on_train_begin(self, logs={}):
+        self.nb_inputs = len(self.model.input_shape) if self.model.input_shape.__class__ == list else 1
+
+    def on_epoch_end(self, epoch, logs={}):
+        current = logs.get(self.monitor)
+        if (current is not None) or (self.save_best_only == False):
+            super(ModelCheckpointExt, self).on_epoch_end(epoch, logs)
+        else:
+            filepath = self.filepath.format(epoch=epoch, **logs)
+            val_predictions = self.model.predict(self.model.validation_data[:self.nb_inputs])
+            val_true = self.model.validation_data[self.nb_inputs]
+            current = self.monitor(val_true, val_predictions)
+            if self.monitor_op(current, self.best):
+                if self.verbose > 0:
+                    if self.monitor.__class__ is str:
+                        print('Epoch %05d: %s improved from %0.5f to %0.5f,'
+                                ' saving model to %s'
+                                % (epoch, self.monitor, self.best, current, filepath))
+                    else:
+                        print('Epoch %05d: measure improved from %0.5f to %0.5f,'
+                                ' saving model to %s'
+                                % (epoch, self.best, current, filepath))
+                self.best = current
+                if self.save_weights_only:
+                    self.model.save_weights(filepath, overwrite=True)
+                else:
+                    self.model.save(filepath, overwrite=True)
+            else:
+                if self.verbose > 0:
+                    print('Epoch %05d: %s did not improve' %
+                            (epoch, self.monitor))
                 
 
 
