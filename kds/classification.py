@@ -5,6 +5,7 @@ Some helper functions for evaluating classification performance.
 from __future__ import print_function
 from sklearn.metrics import classification_report, roc_curve, auc, precision_recall_fscore_support
 from sklearn.linear_model import LogisticRegression
+from sklearn.calibration import calibration_curve
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -157,6 +158,40 @@ class Class_eval(object):
         for tl in ax2.get_yticklabels(): tl.set_color('b')
         ax2.set_ylabel('nr instances', color='b')
         return (ax, ax2)
+
+    def calibration_plot(self, ax=None, legend_lab=None, bins=10):
+        """Similar to bar_prob, but this is the most common way to plot quality of the probabilities.
+        label: Name of column to use as predictions. Defaults to class 1.
+        ax: For plotting multiple lines in the same plot, let ax be the returned values from the previous plot.
+        bins: Number of bins to use.
+        legend_lab: Name to use in the legend.
+        --------
+        return:
+        ax1, ax2: handles for the two plots in the figure. Pass to another .calibration_plot(ax=(ax1, ax2))
+                  to plot multiple lines in the same figure.
+        """
+        preds = self.probs[:, 1]
+        fraction_of_positives, mean_predicted_value = \
+                calibration_curve(self.df.true.values, preds, n_bins=bins)
+        if ax is None:
+            ax1 = plt.subplot2grid((3, 1), (0, 0), rowspan=2)
+            ax2 = plt.subplot2grid((3, 1), (2, 0))
+#             ax1.plot([0, 1], [0, 1], "k:", label="Perfectly calibrated")
+            ax1.plot([0, 1], [0, 1], "k:")
+        else:
+            ax1, ax2 = ax
+        ax1.plot(mean_predicted_value, fraction_of_positives, "s-",
+                     label=legend_lab)
+        ax2.hist(preds, range=(0, 1), bins=bins, label=legend_lab,
+                     histtype="step", lw=2)
+        ax1.set_ylabel("fraction of positives")
+        ax1.set_ylim([-0.05, 1.05])
+        ax1.legend(loc="lower right")
+#         ax1.set_title('calibration plots  (reliability curve)')
+        ax2.set_xlabel("mean predicted value")
+        ax2.set_ylabel("count")
+        ax2.legend(loc="upper center", ncol=2)
+        return ax1, ax2
     
     def add_description(description):
         """Add text description to object"""
@@ -252,6 +287,19 @@ class Class_eval_ensemble(object):
         """
         if rule == 'average': return self._predict_average()
         if rule == 'max': return self._predict_max()
+
+def calibration_plots(results, ax=None, bins=10):
+    """Function for plotting a calibration plot for a dict/list of Class_eval objects.
+    ax: If you want to add the results to an existing figure. See docs for Class_eval.calibration_plot.
+    bins: Number of bins.
+    """
+    if results.__class__ is dict:
+        for name, res in results.iteritems():
+            ax = res.calibration_plot(ax, name, bins)
+    else:
+        for res in results:
+            ax = res.calibration_plot(ax, bins=bins)
+    return ax
 
 
 
