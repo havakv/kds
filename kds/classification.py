@@ -4,6 +4,7 @@ Some helper functions for evaluating classification performance.
 
 from __future__ import print_function
 from sklearn.metrics import classification_report, roc_curve, auc, precision_recall_fscore_support
+from sklearn.linear_model import LogisticRegression
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -251,3 +252,29 @@ class Class_eval_ensemble(object):
         """
         if rule == 'average': return self._predict_average()
         if rule == 'max': return self._predict_max()
+
+
+
+def odds(p):
+    return (p / (1-p))
+
+def logodds(p):
+    return np.log(odds(p))
+
+class Platt_scaling(object):
+    """A class for doinc Platt scaling.
+    logodds: If you want to fit the logodds instead of the preds.
+    C: Regularizer to LogistiRegression
+    """
+    def __init__(self, transform=False, C=1000, **kwargs):
+        self.transform = transform
+        self.lr = LogisticRegression(C=C, **kwargs)
+    def fit(self, preds, true):
+        if self.transform == False:
+            self.lr.fit(preds, true)
+        else:
+            self.lr.fit(self.transform(preds), true)
+    def predict(self, preds):
+        if self.transform == False:
+            return self.lr.predict_proba(preds)
+        return self.lr.predict_proba(self.transform(preds))
