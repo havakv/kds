@@ -302,12 +302,26 @@ def calibration_plots(results, ax=None, bins=10):
     return ax
 
 
+def calibration_from_undersampling(p, beta):
+    """Correction of probabilities obtained by undersampling one class. 
+    See eq (4) in https://www3.nd.edu/~rjohns15/content/papers/ssci2015_calibrating.pdf
+    ---------------
+    p: Probability of undersampled class.
+    beta: Correction variable P(including a point of the undersampled class in the training set).
+    ---------------
+    returns: corrected probabilities.
+    """
+    p_correct = beta*p / (beta*p - p + 1)
+    return p_correct
+
 
 def odds(p):
     return (p / (1-p))
 
+
 def logodds(p):
     return np.log(odds(p))
+
 
 class Platt_scaling(object):
     """A class for doinc Platt scaling.
