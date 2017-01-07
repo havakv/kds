@@ -406,19 +406,3 @@ class Uncertainty_estimates(object):
         """
         raise NotImplementedError()
 
-
-
-        
-def uncertainty_estimates(model, X, nb_samples):
-    """Get uncertainty estimates from keras model using dropout as an bayesian approximation 
-    See https://arxiv.org/abs/1506.02142
-
-    !!! WARNING !!! This will effect all layers that behave differently under training and testing, 
-    e.g. batchnorm
-
-    !!! WARNING !!! Might need to partition data in batches.
-    """
-    predict_fun = K.function([model.input, K.learning_phase()], [model.output])
-    samples = [predict_fun([X, 1])[0] for _ in range(nb_samples)]
-    return samples
-
