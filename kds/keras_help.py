@@ -8,8 +8,9 @@ import pandas as pd
 from PIL import Image
 from keras.models import Model
 import keras
+import keras.backend as K
 import itertools
-from .classification import Class_eval
+from .classification import Class_eval, Class_eval_ensemble
 
 
 def load_and_convert_images(filenames, size, color='L'):
@@ -342,5 +343,82 @@ def show_model_layer_input_output_shapes(model):
         print('input_shape  :', layer.input_shape)
         print('output_shape :', layer.output_shape)
         print('')
+
+
+class Uncertainty_estimates(object):
+    """Get uncertainty estimates from keras model using dropout as an bayesian approximation 
+    See https://arxiv.org/abs/1506.02142
+
+    !!! WARNING !!! This will effect all layers that behave differently under training and testing, 
+    e.g. batchnorm
+
+    !!! WARNING !!! Might need to partition data in batches.
+    """
+    def __init__(self, model):
+        self.predict_fun = K.function([model.input, K.learning_phase()], [model.output])
+
+    def predict_on_batch(self, X_batch, nb_samples=1):
+        samples = [self.predict_fun([X_batch, 1])[0] for _ in range(nb_samples)]
+        return samples
+
+    def make_predictions(self, X, nb_samples=1, batch_size=256, overwrite=True):
+        """Generates nb_samples prediction from the model, using the learning phase.
+        X: data passed to model.
+        batch_size: batche size for the model.
+        np_samples: number of samples to make.
+        overwrite: Overwrite previous results (True) or add new results to previous results (False).
+        --------------
+        returns: self
+        """
+        batches = np.arange(0, len(X)+1, batch_size)
+        if batches[-1] < (len(X)+1):
+            batches = np.concatenate([batches, [len(X)+1]])
+
+        # Get all predictions
+        estimates = []
+        for start, end in zip(batches[:-1], batches[1:]):
+            X_batch = X[start:end]
+            estimates.append(self.predict_on_batch(X_batch, nb_samples))
+
+        # Reorder output
+        est = []
+        for i in range(nb_samples):
+            x = []
+            for j in range(len(batches)-1):
+                x.append(estimates[j][i][:, 1])
+            est.append(np.concatenate(x))
+        df = pd.DataFrame(est)
+        if hasattr(self, 'df') and (overwrite == False):
+            self.df = self.df.append(df, ignore_index=True)
+        else:
+            self.df = df
+        return self
+
+    def to_Class_eval(self, true, *args, **kwargs):
+        """Return Class_eval object.
+        See documentation for Class_eval_ensemble
+        """
+        return Class_eval(true, self.df.mean(), *args, **kwargs)
+
+    def to_Class_eval_ensemble(self, true, *args, **kwargs):
+        """Return Class_eval_ensemble object.
+        See documentation for Class_eval_ensemble
+        """
+        raise NotImplementedError()
+
+
+
         
+def uncertainty_estimates(model, X, nb_samples):
+    """Get uncertainty estimates from keras model using dropout as an bayesian approximation 
+    See https://arxiv.org/abs/1506.02142
+
+    !!! WARNING !!! This will effect all layers that behave differently under training and testing, 
+    e.g. batchnorm
+
+    !!! WARNING !!! Might need to partition data in batches.
+    """
+    predict_fun = K.function([model.input, K.learning_phase()], [model.output])
+    samples = [predict_fun([X, 1])[0] for _ in range(nb_samples)]
+    return samples
 
