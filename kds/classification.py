@@ -262,7 +262,9 @@ class Class_eval_ensemble(object):
         df_true = pd.DataFrame(self.true, columns=['true'])
         cl_list = [pd.DataFrame(cl) for cl in self.classifiers]
         self.df = pd.concat([df_true] + cl_list, axis=1)
-        if self.names is not None:
+        if self.names is None:
+            self.df.columns = ['true'] + ['cl'+str(i) for i in range(len(cl_list))]
+        else:
             self.df.columns = ['true'] + self.names
         if self.ids is not None:
             self.df['id'] = self.ids
