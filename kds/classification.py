@@ -279,9 +279,11 @@ class Class_eval_ensemble(object):
         average = self.df.iloc[:, self._start_class:].mean(axis=1)
         return self._series_to_Class_eval(average)
     def _predict_max(self):
-        """Predict using max over ensamble."""
-        max = self.df.iloc[:, self._start_class:].max(axis=1)
-        return self._series_to_Class_eval(max)
+        """Predict using max over ensamble.
+        Not implemented. Now we only take max, which will greatly favor the 1 class!!!!!!"""
+        raise NotImplemented
+        # max = self.df.iloc[:, self._start_class:].max(axis=1)
+        # return self._series_to_Class_eval(max)
     def predict(self, rule='average'):
         """
         Do predictions of ensemble.
