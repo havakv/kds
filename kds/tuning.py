@@ -85,12 +85,15 @@ grig_parameters_random_forests = {
         'max_features': ['log2', 'sqrt', None]
         }
 
-def plot_feature_importances_(rf, names=None, title='Feature importance', **kwargs):
+def plot_feature_importances_(rf, names=None, title='Feature importance', vertical=False, **kwargs):
     """Plot RandomForeset features_importances_.
     names: list of names of the features.
     **kwargs: given to pandas.seres.plot()
     """
-    ret = pd.DataFrame(rf.feature_importances_.reshape(1, -1), columns=names).ix[0].plot(kind='bar', **kwargs)
+    if vertical:
+        ret = pd.DataFrame(rf.feature_importances_.reshape(1, -1), columns=names).ix[0].plot.bar(**kwargs)
+    else:
+        ret = pd.DataFrame(rf.feature_importances_.reshape(1, -1), columns=names).ix[0].plot.barh(**kwargs)
     plt.title(title)
     return ret
     
