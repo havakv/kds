@@ -28,7 +28,7 @@ class OneHotSubset(BaseEstimator, TransformerMixin):
     def _check_nan(self, x):
         if not self.ignore_nan:
             if np.isnan(x).any():
-                raise Error('Array contains nans!')
+                raise Exception('Array contains nans!')
     
     def fit(self, x, y=None):
         self._check_nan(x)
