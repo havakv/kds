@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import OneHotEncoder
-
+import warnings
 
 class OneHotSubset(BaseEstimator, TransformerMixin):
     '''One hot encoder for all datatypes (string, int, float, etc), 
@@ -22,6 +22,7 @@ class OneHotSubset(BaseEstimator, TransformerMixin):
     ignore_nan: If true we ignore nans, if False we raise an error.
     '''
     def __init__(self, encode=None, handle_unknown='error', ignore_nan=False):
+        warnings.warn('Should maybe have a categorical implementation, see https://tomaugspurger.github.io/categorical-pipelines.html')
         self.encode = encode
         self.handle_unknown = handle_unknown
         self.ignore_nan = ignore_nan
@@ -37,23 +38,23 @@ class OneHotSubset(BaseEstimator, TransformerMixin):
     def fit(self, x, y=None):
         if hasattr(self.encode, '__iter__'):
             self.encSet = set(self.encode)
+            if len(self.encSet - set(x)) != 0:
+                raise ValueError('encode varialbe contains values not found in x.')
         elif self.encode is not None:
             raise ValueError("Need encode to be iterable or None.")
         else: 
             self.encSet = set(x)
-            if self.encSet.difference(set(x)):
-                raise ValueError('The encode list is larger than input x')
         
         self.encMap = {k: i+1 for i, k in enumerate(self.encSet)}
         
         x = pd.Series(x)
         self._check_nan(x)
-        xEmb = x.map(self.encMap)
-        xEmb.fillna(0, inplace=True)
+        xEmb = x.map(self.encMap).fillna(0)
         xfit = xEmb[xEmb != 0].values.reshape(-1, 1)
         
         self.encoder = OneHotEncoder(handle_unknown='ignore')
         self.encoder.fit(xfit)
+        
         return self
         
 
