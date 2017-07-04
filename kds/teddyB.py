@@ -12,6 +12,9 @@ class DataFrame(pd.DataFrame):
     
 
     def applyRow(self, func, *args, **kwargs):
+        '''Like pandas.apply(func, axis=1), but can return all types of objects.
+        If pandas.apply later allow for returning arbitrary objects, remove this function.
+        '''
         new = [row.pipe(func, *args, **kwargs) for idx, row in self.iterrows()]
         return pd.Series(new, index=self.index)
     
