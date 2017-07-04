@@ -3,7 +3,7 @@ Some helper functions for evaluating classification performance.
 """
 
 from __future__ import print_function
-from sklearn.metrics import classification_report, roc_curve, auc, precision_recall_fscore_support
+from sklearn.metrics import classification_report, roc_curve, auc, precision_recall_fscore_support, brier_score_loss
 from sklearn.linear_model import LogisticRegression
 from sklearn.calibration import calibration_curve
 import pandas as pd
@@ -192,8 +192,12 @@ class Class_eval(object):
         ax2.set_ylabel("count")
         ax2.legend(loc="upper center", ncol=2)
         return ax1, ax2
+
+    def brier_score(self, **kwargs):
+        """Brier score. See sklearn.metrics.brier_score_loss for full documentation."""
+        return brier_score_loss(self.df.true, self.probs[:, 1])
     
-    def add_description(description):
+    def add_description(self, description):
         """Add text description to object"""
         self.description = description
 
