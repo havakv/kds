@@ -1,6 +1,19 @@
 import pandas as pd
 from functools import reduce
 
+"""
+TODO:
+    DataFrame:
+    - Make wrapper for saving and loading objects to disk.
+    - Make general print methods used for logging training of models.
+    - Make functions for creating cross-validations with repetitions.
+
+    groupby obj:
+    - Make nest function.
+        - Should also be able to nest groups containing data frames (already nested)
+            This could be done by instead changing pipe or apply or something...
+"""
+
 class DataFrame(pd.DataFrame):
     '''DataFrame for something like tidyr.'''
     
@@ -29,17 +42,20 @@ class DataFrame(pd.DataFrame):
         return self.assign(**{name: self.applyRow(func) for name, func in kwargs.items()})
 
 
-    def unnest(self, column, dropOldIndex=False, dropColumn=True, checkNestedColumns=True):
-        '''Like tidyr unnest.
+    def unnest(self, column, dropIndex=False, dropColumn=True, checkNestedColumns=True):
+        '''Like tidyr unnest. 
+        Doesn't work for multiindex.
         column: column name to unnest.
-        dropOldIndex: if we should keep the old index as a columns
+        dropIndex: if we should keep the old index as a columns
         dropColumns: if we should drop the column that we unnest.
         checkNestedColumns: if True, make sure that all dataframes in 'column' have the same columns.
         '''
-        indexName = 'index_old' if self.index.name is None else self.index.name
+        if isinstance(self.index, pd.core.index.MultiIndex):
+            raise ValueError("Function unnest doesn't work wtih Multiindex. Use reset_index() before unnest.")
+        indexName = 'index_nest' if self.index.name is None else self.index.name
         def checkIndexName(indexName):
             if self.columns.contains(indexName) or self[column].iloc[0].columns.contains(indexName):
-                indexName = indexName + '_old'
+                indexName = indexName + '_nest'
                 checkIndexName(indexName)
             return indexName
         indexName = checkIndexName(indexName)
@@ -56,7 +72,7 @@ class DataFrame(pd.DataFrame):
         if dropColumn:
             df = df.drop(column, axis=1)
         df = df.merge(mergeCol, 'left', on=indexName)
-        if dropOldIndex:
+        if dropIndex:
             df = df.drop(indexName, axis=1)
         return df
 
@@ -69,9 +85,11 @@ class DataFrame(pd.DataFrame):
         col: names of column that contain tuples.
         '''
         unzip = list(zip(*self[col]))
-        return self.assign(**{name: series for name, series in zip(names, unzip)})
+        return self.assign(**{name: list(series) for name, series in zip(names, unzip)})
     
     def nest(self):
-        '''Like tidyr nest. Don't know if it will ever be implemented.'''
+        '''Like tidyr nest. Should be part of groupby object.
+        Don't know if it will ever be implemented.
+        '''
         raise NotImplementedError
     
