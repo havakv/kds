@@ -1,4 +1,5 @@
 import pandas as pd
+from functools import reduce
 
 class DataFrame(pd.DataFrame):
     '''DataFrame for something like tidyr.'''
@@ -28,11 +29,12 @@ class DataFrame(pd.DataFrame):
         return self.assign(**{name: self.applyRow(func) for name, func in kwargs.items()})
 
 
-    def unnest(self, column, dropOldIndex=False, dropColumn=True):
+    def unnest(self, column, dropOldIndex=False, dropColumn=True, checkNestedColumns=True):
         '''Like tidyr unnest.
         column: column name to unnest.
         dropOldIndex: if we should keep the old index as a columns
         dropColumns: if we should drop the column that we unnest.
+        checkNestedColumns: if True, make sure that all dataframes in 'column' have the same columns.
         '''
         indexName = 'index_old' if self.index.name is None else self.index.name
         def checkIndexName(indexName):
@@ -41,6 +43,11 @@ class DataFrame(pd.DataFrame):
                 checkIndexName(indexName)
             return indexName
         indexName = checkIndexName(indexName)
+
+        if checkNestedColumns:
+            allCols = self[column].apply(lambda x: set(x.columns)).pipe(lambda s: reduce(lambda x,y: x|y, s))
+            assert allCols == set(self[column].iloc[0].columns),\
+                    "Column of dataframes in '"+column+"' differ. Need to be equal to unnest."
         
         df = self.reset_index().rename(columns={'index': indexName})
         mergeCol = (df
