@@ -406,3 +406,28 @@ class Uncertainty_estimates(object):
         """
         raise NotImplementedError()
 
+
+class KerasClassifier_lossScore(KerasClassifier):
+    '''Same as keras.wrappers.scikit_learn.KerasClassifier, but
+    with scorer that use loss instead of accuracy.
+    TODO:
+    Should be implemeted to use both...
+    '''
+    def score(self, x, y, **kwargs):
+        y = np.searchsorted(self.classes_, y)
+        kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
+
+        loss_name = self.model.loss
+        if hasattr(loss_name, '__name__'):
+            loss_name = loss_name.__name__
+        if loss_name == 'categorical_crossentropy' and len(y.shape) != 2:
+            y = to_categorical(y)
+
+        outputs = self.model.evaluate(x, y, **kwargs)
+        if not isinstance(outputs, list):
+            outputs = [outputs]
+        for name, output in zip(self.model.metrics_names, outputs):
+    #         if name == 'acc':
+            if name == 'loss':
+                return output
+        raise ValueError("Don't know what went wrong. See source code...")
