@@ -42,7 +42,7 @@ class DataFrame(pd.DataFrame):
         return self.assign(**{name: self.applyRow(func) for name, func in kwargs.items()})
 
 
-    def unnest(self, column, dropIndex=False, dropColumn=True, checkNestedColumns=True):
+    def unnest(self, column, dropIndex=True, dropColumn=True, checkNestedColumns=True):
         '''Like tidyr unnest. 
         Doesn't work for multiindex.
         column: column name to unnest.
@@ -51,7 +51,8 @@ class DataFrame(pd.DataFrame):
         checkNestedColumns: if True, make sure that all dataframes in 'column' have the same columns.
         '''
         if isinstance(self.index, pd.core.index.MultiIndex):
-            raise ValueError("Function unnest doesn't work wtih Multiindex. Use reset_index() before unnest.")
+            # raise ValueError("Function unnest doesn't work wtih Multiindex. Use reset_index() before unnest.")
+            self = self.reset_index()
         indexName = 'index_nest' if self.index.name is None else self.index.name
         def checkIndexName(indexName):
             if self.columns.contains(indexName) or self[column].iloc[0].columns.contains(indexName):
