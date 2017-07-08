@@ -188,7 +188,9 @@ class DataFrameGroupBy(pd.core.groupby.DataFrameGroupBy):
             return dataName
         dataName = checkName('data')
 
-        new = DataFrame(list(self), columns=['index', dataName]).assignUnzip(self.keys, 'index')
+        new = DataFrame(list(self), columns=[self.keys[0], dataName])
+        if len(self.keys) > 1:
+            new = new.assignUnzip(self.keys, self.keys[0])
         if dropGrColsInNested:
             new = new.asapRow(**{dataName: lambda x: x[dataName].drop(self.keys, axis=1)})
         if grAsIndex:
