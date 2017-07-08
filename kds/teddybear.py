@@ -176,8 +176,12 @@ def _teddy_groupby(obj, by, **kwsd):
     
 
 class DataFrameGroupBy(pd.core.groupby.DataFrameGroupBy):
-    def nest(self, groupsAsIndex=True):
-        '''Like nest in tidyr.'''
+    def nest(self, grAsIndex=True, dropGrColsInNested=True):
+        '''Returns a DataFrame with group data nested into DataFrames (column: data[_nested*x].
+        Like nest in tidyr.
+        grAsIndex: If the groups should be the index or columns of the returned DataFrame.
+        dropGrColsInNested: If the group variables should be dropped from the nested data.
+        '''
         def checkName(dataName):
             if dataName in self.keys: 
                 dataName = checkName(dataName + '_nested')
@@ -185,7 +189,9 @@ class DataFrameGroupBy(pd.core.groupby.DataFrameGroupBy):
         dataName = checkName('data')
 
         new = DataFrame(list(self), columns=['index', dataName]).assignUnzip(self.keys, 'index')
-        if groupsAsIndex:
+        if dropGrColsInNested:
+            new = new.asapRow(**{dataName: lambda x: x[dataName].drop(self.keys, axis=1)})
+        if grAsIndex:
             return new.set_index(self.keys)
         return new[self.keys + [dataName]]
 
