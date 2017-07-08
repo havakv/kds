@@ -14,6 +14,20 @@ TODO:
             This could be done by instead changing pipe or apply or something...
 """
 
+class Series(pd.Series):
+    @property
+    def _constructor(self):
+        '''Many pandas methods use copy which return a pd.Series. 
+        By over writing this, we keep our current type (not pandas).
+        '''
+        return Series
+
+    @property
+    def _constructor_expanddim(self):
+        '''Used to reset index and make a DataFrame. Override to keep teddy.'''
+        return DataFrame
+
+
 class DataFrame(pd.DataFrame):
     '''DataFrame for something like tidyr.'''
     
@@ -80,15 +94,17 @@ class DataFrame(pd.DataFrame):
         return df
 
 
-    #------------------------------------------
-    # Suggested functions
-    def assignUnzip(self, names, col):
+    def assignUnzip(self, names, col, drop=True):
         '''When a column contains tuples, this will assigne the tuples in 'col' to columns 'names'.
         names: list of new column names.
         col: names of column that contain tuples.
         '''
         unzip = list(zip(*self[col]))
-        return self.assign(**{name: list(series) for name, series in zip(names, unzip)})
+        new = self.assign(**{name: list(series) for name, series in zip(names, unzip)})
+        if drop and (col not in names):
+            return new.drop(col, axis=1)
+        return new
+
     
     def nest(self):
         '''Like tidyr nest. Should be part of groupby object.
@@ -162,20 +178,5 @@ class DataFrameGroupBy(pd.core.groupby.DataFrameGroupBy):
     def nest(self):
         '''Like nest in tidyr.'''
         pass
-
-
-class Series(pd.Series):
-    @property
-    def _constructor(self):
-        '''Many pandas methods use copy which return a pd.Series. 
-        By over writing this, we keep our current type (not pandas).
-        '''
-        return Series
-
-    @property
-    def _constructor_expanddim(self):
-        '''Used to reset index and make a DataFrame. Override to keep teddy.'''
-        return DataFrame
-
 
 
