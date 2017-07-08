@@ -24,6 +24,8 @@ class DataFrame(pd.DataFrame):
         '''
         return DataFrame
     
+    _constructor_sliced = Series # Keep teddy
+
 
     def applyRow(self, func, *args, **kwargs):
         '''Like pandas.apply(func, axis=1), but can return all types of objects.
@@ -160,4 +162,20 @@ class DataFrameGroupBy(pd.core.groupby.DataFrameGroupBy):
     def nest(self):
         '''Like nest in tidyr.'''
         pass
+
+
+class Series(pd.Series):
+    @property
+    def _constructor(self):
+        '''Many pandas methods use copy which return a pd.Series. 
+        By over writing this, we keep our current type (not pandas).
+        '''
+        return Series
+
+    @property
+    def _constructor_expanddim(self):
+        '''Used to reset index and make a DataFrame. Override to keep teddy.'''
+        return DataFrame
+
+
 
