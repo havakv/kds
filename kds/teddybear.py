@@ -187,13 +187,13 @@ class DataFrameGroupBy(pd.core.groupby.DataFrameGroupBy):
                 dataName = checkName(dataName + '_nested')
             return dataName
         dataName = checkName('data')
-
-        new = DataFrame(list(self), columns=[self.keys[0], dataName])
-        if len(self.keys) > 1:
-            new = new.assignUnzip(self.keys, self.keys[0])
+        keys = [self.keys] if self.keys.__class__ is str else self.keys
+        new = DataFrame(list(self), columns=[keys[0], dataName])
+        if len(keys) > 1:
+            new = new.assignUnzip(keys, keys[0])
         if dropGrColsInNested:
-            new = new.asapRow(**{dataName: lambda x: x[dataName].drop(self.keys, axis=1)})
+            new = new.asapRow(**{dataName: lambda x: x[dataName].drop(keys, axis=1)})
         if grAsIndex:
-            return new.set_index(self.keys)
-        return new[self.keys + [dataName]]
+            return new.set_index(keys)
+        return new[keys + [dataName]]
 
