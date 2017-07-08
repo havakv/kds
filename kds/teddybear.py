@@ -105,6 +105,17 @@ class DataFrame(pd.DataFrame):
             return new.drop(col, axis=1)
         return new
 
+    def flattenColMultiIndex(self, inplace=False, bindChar='_'):
+        '''For MultiIndex columns (multiple levels), flatten the columns, and concatenate names.
+        '''
+        newNames = [bindChar.join(i) for i in self.columns.get_values()]
+        newNames = [i[:-1] if i[-1]==bindChar else i for i in newNames]
+        if len(newNames) != len(set(newNames)):
+            raise ValueError('The new column names are not unique. Maybe use another bindChar?')
+        new = self if inplace else self.copy()
+        new.columns = newNames
+        return new
+
     
     def nest(self):
         '''Like tidyr nest. Should be part of groupby object.
@@ -197,3 +208,5 @@ class DataFrameGroupBy(pd.core.groupby.DataFrameGroupBy):
             return new.set_index(keys)
         return new[keys + [dataName]]
 
+
+concat = pd.concat # Works out of the box
