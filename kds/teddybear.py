@@ -93,4 +93,71 @@ class DataFrame(pd.DataFrame):
         Don't know if it will ever be implemented.
         '''
         raise NotImplementedError
+
+    def groupby(self, by=None, axis=0, level=None, as_index=True, sort=True,
+                group_keys=True, squeeze=False, **kwargs):
+        """
+        Group series using mapper (dict or key function, apply given function
+        to group, return result as series) or by a series of columns.
+        Parameters
+        ----------
+        by : mapping, function, str, or iterable
+            Used to determine the groups for the groupby.
+            If ``by`` is a function, it's called on each value of the object's
+            index. If a dict or Series is passed, the Series or dict VALUES
+            will be used to determine the groups (the Series' values are first
+            aligned; see ``.align()`` method). If an ndarray is passed, the
+            values are used as-is determine the groups. A str or list of strs
+            may be passed to group by the columns in ``self``
+        axis : int, default 0
+        level : int, level name, or sequence of such, default None
+            If the axis is a MultiIndex (hierarchical), group by a particular
+            level or levels
+        as_index : boolean, default True
+            For aggregated output, return object with group labels as the
+            index. Only relevant for DataFrame input. as_index=False is
+            effectively "SQL-style" grouped output
+        sort : boolean, default True
+            Sort group keys. Get better performance by turning this off.
+            Note this does not influence the order of observations within each
+            group.  groupby preserves the order of rows within each group.
+        group_keys : boolean, default True
+            When calling apply, add group keys to index to identify pieces
+        squeeze : boolean, default False
+            reduce the dimensionality of the return type if possible,
+            otherwise return a consistent type
+        Examples
+        --------
+        DataFrame results
+        >>> data.groupby(func, axis=0).mean()
+        >>> data.groupby(['col1', 'col2'])['col3'].mean()
+        DataFrame with hierarchical index
+        >>> data.groupby(['col1', 'col2']).mean()
+        Returns
+        -------
+        GroupBy object
+        """
+        #from pandas.core.groupby import groupby # we use DataFrameGrouBy instead.
+        groupby = _teddy_groupby
+
+        if level is None and by is None:
+            raise TypeError("You have to supply one of 'by' and 'level'")
+        axis = self._get_axis_number(axis)
+        return groupby(self, by=by, axis=axis, level=level, as_index=as_index,
+                       sort=sort, group_keys=group_keys, squeeze=squeeze,
+                       **kwargs)
+
+
+
+def _teddy_groupby(obj, by, **kwsd):
+    '''Function replacing pandas.core.groupby, so we can use inherited version 
+    of DataFrameGroupBy.
+    '''
+    return DataFrameGroupBy(obj, by, **kwsd)
     
+
+class DataFrameGroupBy(pd.core.groupby.DataFrameGroupBy):
+    def nest(self):
+        '''Like nest in tidyr.'''
+        pass
+
