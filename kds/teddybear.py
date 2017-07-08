@@ -112,6 +112,7 @@ class DataFrame(pd.DataFrame):
         '''
         raise NotImplementedError
 
+
     def groupby(self, by=None, axis=0, level=None, as_index=True, sort=True,
                 group_keys=True, squeeze=False, **kwargs):
         """
@@ -175,8 +176,16 @@ def _teddy_groupby(obj, by, **kwsd):
     
 
 class DataFrameGroupBy(pd.core.groupby.DataFrameGroupBy):
-    def nest(self):
+    def nest(self, groupsAsIndex=True):
         '''Like nest in tidyr.'''
-        pass
+        def checkName(dataName):
+            if dataName in self.keys: 
+                dataName = checkName(dataName + '_nested')
+            return dataName
+        dataName = checkName('data')
 
+        new = DataFrame(list(self), columns=['index', dataName]).assignUnzip(self.keys, 'index')
+        if groupsAsIndex:
+            return new.set_index(self.keys)
+        return new[self.keys + [dataName]]
 
