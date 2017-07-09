@@ -52,8 +52,8 @@ class DataFrame(pd.DataFrame):
         Shorthand to call sels.applylRow(func), and assign to variable name.
         '''
         # Don't know why this doesn't work...
-#         return self.assign(**{name: lambda x: x.applyRow(func) for name, func in kwargs.items()})
-        return self.assign(**{name: self.applyRow(func) for name, func in kwargs.items()})
+#         return self.assign(**{name: lambda x: x.rapply(func) for name, func in kwargs.items()})
+        return self.assign(**{name: self.rapply(func) for name, func in kwargs.items()})
 
 
     def unnest(self, column, dropIndex=True, dropColumn=True, checkNestedColumns=True):
@@ -86,7 +86,7 @@ class DataFrame(pd.DataFrame):
 
         df = self.reset_index().rename(columns={'index': indexName})
         mergeCol = (
-            df.applyRow(lambda x: x[column].assign(**{indexName: x[indexName]}))
+            df.rapply(lambda x: x[column].assign(**{indexName: x[indexName]}))
             .pipe(lambda x: pd.concat(list(x)))
             )
         if dropColumn:
@@ -209,9 +209,9 @@ class DataFrameGroupBy(pd.core.groupby.DataFrameGroupBy):
         keys = [self.keys] if self.keys.__class__ is str else self.keys
         new = DataFrame(list(self), columns=[keys[0], dataName])
         if len(keys) > 1:
-            new = new.assignUnzip(keys, keys[0])
+            new = new.assign_unzip(keys, keys[0])
         if dropGrColsInNested:
-            new = new.asapRow(**{dataName: lambda x: x[dataName].drop(keys, axis=1)})
+            new = new.asap(**{dataName: lambda x: x[dataName].drop(keys, axis=1)})
         if grAsIndex:
             return new.set_index(keys)
         return new[keys + [dataName]]
