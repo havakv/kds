@@ -9,6 +9,7 @@ from PIL import Image
 from keras.models import Model
 import keras
 import keras.backend as K
+from keras.wrappers.scikit_learn import KerasClassifier
 import itertools
 from .classification import Class_eval, Class_eval_ensemble
 
