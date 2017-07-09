@@ -1,26 +1,23 @@
-import pandas as pd
-from functools import reduce
-
 """
 TODO:
     DataFrame:
     - Make wrapper for saving and loading objects to disk.
-    - Make general print methods used for logging training of models.
+    - Make general print methods used for logging training of models. Maybe not in this library??
     - Make functions for creating cross-validations with repetitions.
-
-    groupby obj:
-    - Make nest function.
-        - Should also be able to nest groups containing data frames (already nested)
-            This could be done by instead changing pipe or apply or something...
 """
+
+import pandas as pd
+from functools import reduce
+
 
 class Series(pd.Series):
     @property
     def _constructor(self):
-        '''Many pandas methods use copy which return a pd.Series. 
+        '''Many pandas methods use copy which return a pd.Series.
         By over writing this, we keep our current type (not pandas).
         '''
         return Series
+
 
     @property
     def _constructor_expanddim(self):
@@ -30,26 +27,27 @@ class Series(pd.Series):
 
 class DataFrame(pd.DataFrame):
     '''DataFrame for something like tidyr.'''
-    
+
     @property
     def _constructor(self):
-        '''Many pandas methods use copy which return a pd.DataFrame. 
+        '''Many pandas methods use copy which return a pd.DataFrame.
         By over writing this, we keep our current type (not pandas).
         '''
         return DataFrame
-    
-    _constructor_sliced = Series # Keep teddy
 
 
-    def applyRow(self, func, *args, **kwargs):
+    _constructor_sliced = Series  # Keep teddy
+
+
+    def rapply(self, func, *args, **kwargs):
         '''Like pandas.apply(func, axis=1), but can return all types of objects.
         If pandas.apply later allow for returning arbitrary objects, remove this function.
         '''
         new = [row.pipe(func, *args, **kwargs) for idx, row in self.iterrows()]
         return pd.Series(new, index=self.index)
-    
 
-    def asapRow(self, **kwargs):
+
+    def asap(self, **kwargs):
         '''Assign and apply to row. So like assign, but works on rows rather than full df.
         Shorthand to call sels.applylRow(func), and assign to variable name.
         '''
@@ -59,15 +57,15 @@ class DataFrame(pd.DataFrame):
 
 
     def unnest(self, column, dropIndex=True, dropColumn=True, checkNestedColumns=True):
-        '''Like tidyr unnest. 
+        '''Like tidyr unnest.
         Doesn't work for multiindex.
         column: column name to unnest.
         dropIndex: if we should keep the old index as a columns
         dropColumns: if we should drop the column that we unnest.
-        checkNestedColumns: if True, make sure that all dataframes in 'column' have the same columns.
+        checkNestedColumns: if True, make sure that all dataframes in
+            'column' have the same columns.
         '''
         if isinstance(self.index, pd.core.index.MultiIndex):
-            # raise ValueError("Function unnest doesn't work wtih Multiindex. Use reset_index() before unnest.")
             self = self.reset_index()
         indexName = 'index_nest' if self.index.name is None else self.index.name
         def checkIndexName(indexName):
@@ -78,14 +76,19 @@ class DataFrame(pd.DataFrame):
         indexName = checkIndexName(indexName)
 
         if checkNestedColumns:
-            allCols = self[column].apply(lambda x: set(x.columns)).pipe(lambda s: reduce(lambda x,y: x|y, s))
+            allCols = (
+                self[column]
+                .apply(lambda x: set(x.columns))
+                .pipe(lambda s: reduce(lambda x, y: x|y, s))
+                )
             assert allCols == set(self[column].iloc[0].columns),\
                     "Column of dataframes in '"+column+"' differ. Need to be equal to unnest."
-        
+
         df = self.reset_index().rename(columns={'index': indexName})
-        mergeCol = (df
-                    .applyRow(lambda x: x[column].assign(**{indexName: x[indexName]}))
-                    .pipe(lambda x: pd.concat(list(x))))
+        mergeCol = (
+            df.applyRow(lambda x: x[column].assign(**{indexName: x[indexName]}))
+            .pipe(lambda x: pd.concat(list(x)))
+            )
         if dropColumn:
             df = df.drop(column, axis=1)
         df = df.merge(mergeCol, 'left', on=indexName)
@@ -94,7 +97,7 @@ class DataFrame(pd.DataFrame):
         return df
 
 
-    def assignUnzip(self, names, col, drop=True):
+    def assign_unzip(self, names, col, drop=True):
         '''When a column contains tuples, this will assigne the tuples in 'col' to columns 'names'.
         names: list of new column names.
         col: names of column that contain tuples.
@@ -105,18 +108,24 @@ class DataFrame(pd.DataFrame):
             return new.drop(col, axis=1)
         return new
 
-    def flattenColMultiIndex(self, inplace=False, bindChar='_'):
+
+    def flatten_col_multi_index(self, inplace=False, bindChar='_'):
         '''For MultiIndex columns (multiple levels), flatten the columns, and concatenate names.
         '''
         newNames = [bindChar.join(i) for i in self.columns.get_values()]
-        newNames = [i[:-1] if i[-1]==bindChar else i for i in newNames]
+        newNames = [i[:-1] if i[-1] == bindChar else i for i in newNames]
         if len(newNames) != len(set(newNames)):
             raise ValueError('The new column names are not unique. Maybe use another bindChar?')
         new = self if inplace else self.copy()
         new.columns = newNames
         return new
 
-    
+    applyRow = rapply  # legacy
+    asapRow = asap
+    assignUnzip = assing_unzip
+    flattenColMultiIndex = flatten_col_multi_index
+
+
     def nest(self):
         '''Like tidyr nest. Should be part of groupby object.
         Don't know if it will ever be implemented.
@@ -178,13 +187,12 @@ class DataFrame(pd.DataFrame):
                        **kwargs)
 
 
-
 def _teddy_groupby(obj, by, **kwsd):
-    '''Function replacing pandas.core.groupby, so we can use inherited version 
+    '''Function replacing pandas.core.groupby, so we can use inherited version
     of DataFrameGroupBy.
     '''
     return DataFrameGroupBy(obj, by, **kwsd)
-    
+
 
 class DataFrameGroupBy(pd.core.groupby.DataFrameGroupBy):
     def nest(self, grAsIndex=True, dropGrColsInNested=True):
@@ -194,7 +202,7 @@ class DataFrameGroupBy(pd.core.groupby.DataFrameGroupBy):
         dropGrColsInNested: If the group variables should be dropped from the nested data.
         '''
         def checkName(dataName):
-            if dataName in self.keys: 
+            if dataName in self.keys:
                 dataName = checkName(dataName + '_nested')
             return dataName
         dataName = checkName('data')
