@@ -96,15 +96,23 @@ class DataFrame(pd.DataFrame):
             df = df.drop(indexName, axis=1)
         return df
 
+    def unzip(self, col, into, drop=True):
+        '''Unzip column 'col' containing tuples.
+        col: column to unzip.
+        into: list of names of new columns.
+        drop: if we should drop col from new data frame.
+        '''
+        raise NotImplementedError
 
-    def assign_unzip(self, names, col, drop=True):
-        '''When a column contains tuples, this will assigne the tuples in 'col' to columns 'names'.
-        names: list of new column names.
-        col: names of column that contain tuples.
+
+    def assign_unzip(self, col, into, drop=True):
+        '''When a column contains tuples, this will assigne the tuples in 'col' to columns 'into'.
+        col: into of column that contain tuples.
+        into: list of new column into.
         '''
         unzip = list(zip(*self[col]))
-        new = self.assign(**{name: list(series) for name, series in zip(names, unzip)})
-        if drop and (col not in names):
+        new = self.assign(**{name: list(series) for name, series in zip(into, unzip)})
+        if drop and (col not in into):
             return new.drop(col, axis=1)
         return new
 
