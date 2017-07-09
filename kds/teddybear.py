@@ -122,7 +122,7 @@ class DataFrame(pd.DataFrame):
 
     applyRow = rapply  # legacy
     asapRow = asap
-    assignUnzip = assing_unzip
+    assignUnzip = assign_unzip
     flattenColMultiIndex = flatten_col_multi_index
 
 
