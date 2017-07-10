@@ -56,20 +56,27 @@ class DataFrame(pd.DataFrame):
         return self.assign(**{name: self.rapply(func) for name, func in kwargs.items()})
 
 
-    def unnest(self, column, dropIndex=True, dropColumn=True, checkNestedColumns=True):
+    def unnest(self, column, dropNestIdx=True,
+               dropIndex=False, dropColumn=True, checkNestedColumns=True):
         '''Like tidyr unnest.
         Doesn't work for multiindex.
         column: column name to unnest.
-        dropIndex: if we should keep the old index as a columns
+        dropNestIdx: if we should drop the index in the nested data frames.
+        dropIndex: if we should keep the old index as a columns.
         dropColumns: if we should drop the column that we unnest.
         checkNestedColumns: if True, make sure that all dataframes in
             'column' have the same columns.
         '''
+        new = self
         if isinstance(self.index, pd.core.index.MultiIndex):
-            self = self.reset_index()
-        indexName = 'index_nest' if self.index.name is None else self.index.name
+            new = new.reset_index()
+
+        if not dropNestIdx:
+            new = new.asap(**{column: lambda x: x[column].reset_index()})
+
+        indexName = 'index_nest' if new.index.name is None else new.index.name
         def checkIndexName(indexName):
-            if self.columns.contains(indexName) or self[column].iloc[0].columns.contains(indexName):
+            if new.columns.contains(indexName) or new[column].iloc[0].columns.contains(indexName):
                 indexName = indexName + '_nest'
                 checkIndexName(indexName)
             return indexName
@@ -77,24 +84,24 @@ class DataFrame(pd.DataFrame):
 
         if checkNestedColumns:
             allCols = (
-                self[column]
+                new[column]
                 .apply(lambda x: set(x.columns))
                 .pipe(lambda s: reduce(lambda x, y: x|y, s))
                 )
-            assert allCols == set(self[column].iloc[0].columns),\
+            assert allCols == set(new[column].iloc[0].columns),\
                     "Column of dataframes in '"+column+"' differ. Need to be equal to unnest."
 
-        df = self.reset_index().rename(columns={'index': indexName})
+        new = new.reset_index().rename(columns={'index': indexName})
         mergeCol = (
-            df.rapply(lambda x: x[column].assign(**{indexName: x[indexName]}))
+            new.rapply(lambda x: x[column].assign(**{indexName: x[indexName]}))
             .pipe(lambda x: pd.concat(list(x)))
             )
         if dropColumn:
-            df = df.drop(column, axis=1)
-        df = df.merge(mergeCol, 'left', on=indexName)
+            new = new.drop(column, axis=1)
+        new = new.merge(mergeCol, 'left', on=indexName)
         if dropIndex:
-            df = df.drop(indexName, axis=1)
-        return df
+            new = new.drop(indexName, axis=1)
+        return new
 
     def unzip(self, col, into, drop=True):
         '''Unzip column 'col' containing tuples.
@@ -117,7 +124,7 @@ class DataFrame(pd.DataFrame):
         return new
 
 
-    def flatten_col_multi_index(self, inplace=False, bindChar='_'):
+    def flatten_colnames(self, inplace=False, bindChar='_'):
         '''For MultiIndex columns (multiple levels), flatten the columns, and concatenate names.
         '''
         newNames = [bindChar.join(i) for i in self.columns.get_values()]
@@ -131,6 +138,7 @@ class DataFrame(pd.DataFrame):
     applyRow = rapply  # legacy
     asapRow = asap
     assignUnzip = assign_unzip
+    flatten_col_multi_index = flatten_colnames
     flattenColMultiIndex = flatten_col_multi_index
 
 
