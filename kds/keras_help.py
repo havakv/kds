@@ -3,6 +3,7 @@ Helper functions for keras.
 """
 
 from __future__ import print_function
+from copy import deepcopy
 import numpy as np
 import pandas as pd
 from PIL import Image
@@ -12,6 +13,8 @@ import keras.backend as K
 from keras.wrappers.scikit_learn import KerasClassifier
 import itertools
 from .classification import Class_eval, Class_eval_ensemble
+from .teddybear import DataFrame
+from sklearn.model_selection import KFold, ParameterGrid, LeaveOneGroupOut
 
 
 def load_and_convert_images(filenames, size, color='L'):
@@ -432,3 +435,169 @@ class KerasClassifier_lossScore(KerasClassifier):
             if name == 'loss':
                 return output
         raise ValueError("Don't know what went wrong. See source code...")
+
+
+class KerasClassifierGSCV(object):
+    def __init__(self, build_fun, **fitParameters):
+        self.build_fun = build_fun
+        self.fitParameters = fitParameters
+
+    def build(self, **kwargs):
+        self.model = self.build_fun(**kwargs)
+        return self
+
+    def fit(self, Xtr, ytr, Xte, yte, **kwargs):
+        '''
+        **kwargs can be used to overwrite arguments in __init__ **fitParameters.
+        '''
+        self.fitParameters.update(kwargs)
+        log = self.model.fit(Xtr, ytr, validation_data=[Xte, yte], **self.fitParameters)
+        return log, self
+
+    def copy(self):
+        return deepcopy(self)
+
+
+class GridSearchCVKeras(object):
+    '''
+    estimator: KerasClassifier_gscv. Want to extend this to sklearn!!!!!!!!!!!!!!
+    param_grid: dictionary of parameters (as in in sklearn GridSearchCV).
+    cv: Number of cv folds, or KFold object.
+
+    TODO:
+    - Make version that with validation set instead of cv folds.
+    - Make version with random search over parameters.
+    - Make fit method verbose.
+    - Change name to GridSearchCVKeras
+    - Should be able to call fit multiple times.
+    - Fit methods should take 'epochs' as parameter???
+    - Should have a constructor that can take a subset of the grid and continue training on that???
+    '''
+    def __init__(self, estimator, param_grid, cv=3):
+        self.estimator = estimator
+        self.param_grid = param_grid
+        if type(cv) is int:
+            self.cv = KFold(cv, shuffle=True)
+        elif type(cv) is KFold:
+            self.cv = cv
+        else:
+            raise ValueError('Need cv to be int or KFold')
+
+        self.cvParameters = list(self.param_grid.keys())
+
+        self.grid_setup = DataFrame(list(ParameterGrid(dict(**self.param_grid, cv_fold=range(self.cv.n_splits)))))
+        self._addParameterConfigId()
+
+    def _addParameterConfigId(self):
+        '''For each group of parameter, add parConfigId, which makes it easier to group later.'''
+        parConfigId = (self.grid_setup
+                       .drop('cv_fold', axis=1)
+                       .drop_duplicates()
+                       .assign(parConfigId=lambda x: np.arange(len(x))))
+        self.grid_setup = self.grid_setup.merge(parConfigId, 'left', on=self.cvParameters)
+        
+    
+    def setupFolds(self, X, y, mapper=None, groups=None):
+        '''Make indices for cv-folds
+        groups: Group labels for the samples used while splitting the dataset into train/test set.
+        '''
+        if type(X) in [pd.DataFrame, DataFrame]:
+            return self._setupFoldsDataFrame(X, y, mapper, groups)
+
+        raise NotImplementedError('need to implement mapper functionality')
+        splits = list(self.cv.split(X, groups=groups))
+        train, test = list(zip(*splits))
+        splits = (DataFrame(dict(trainIdx=train, testIdx=test, cv_fold=range(self.cv.n_splits)))
+                  .asapRow(Xtr = lambda x: X[x['trainIdx']], 
+                           Xte = lambda x: X[x['testIdx']], 
+                           ytr = lambda x: y[x['trainIdx']], 
+                           yte = lambda x: y[x['testIdx']])
+                 )
+        self.grid = (self.grid_setup.merge(splits, 'left', on='cv_fold')
+                     .asapRow(estimator= lambda x: self.estimator.copy()))
+        return self
+        
+    def _setupFoldsDataFrame(self, X, y, mapper, groups=None):
+        '''Make indices for cv-folds
+        mapper: sklearn_pandas.DataFrameMapper
+        groups: Group labels for the samples used while splitting the dataset into train/test set.
+        '''
+        splits = list(self.cv.split(X, groups=groups))
+        trainIdx, testIdx = list(zip(*splits))
+        splits = (
+            DataFrame(dict(trainIdx=trainIdx, testIdx=testIdx, cv_fold=range(self.cv.n_splits)))
+            .asap(mapper=lambda x: deepcopy(mapper).fit(X.iloc[x['trainIdx']]))
+            .asap(
+                Xtr=lambda x: x['mapper'].transform(X.iloc[x['trainIdx']]),
+                Xte=lambda x: x['mapper'].transform(X.iloc[x['testIdx']]),
+                ytr=lambda x: y[x['trainIdx']],
+                yte=lambda x: y[x['testIdx']],
+            )
+        )
+        self.grid = (self.grid_setup.merge(splits, 'left', on='cv_fold')
+                     .asapRow(estimator=lambda x: self.estimator.copy()))
+        return self
+    
+    def fit(self, X, y, mapper=None, groups=None, cvVerbose=1, **kwargs):
+        '''Fit cv fold (full experiment).
+        mapper: sklearn_pandas.DataFrameMapper
+        groups: Group labels for the samples used while splitting the dataset into train/test set.
+        cvVerbose: Verbose for each fold, or something.
+        **kwargs are passed to the keras fit method to overwrite such things as epochs and batch size.
+        TODO: 
+        - Give option epoch maybe.
+        - Should be able to call fit again to do more epochs.
+        '''
+        self.setupFolds(X, y, mapper, groups)
+
+        def fit(x):
+            fit.it += 1
+            if cvVerbose == 1:
+                print(fit.it, 'of', len(self.grid))
+            return x['estimator'].fit(x['Xtr'], x['ytr'], x['Xte'], x['yte'], **kwargs)
+        fit.it = 0
+
+        self.grid = (self.grid
+                     .asap(estimator=lambda x: x['estimator'].build(**self._getParameterDictForRow(x)))
+                    #  .asapRow(estimator=lambda x: x['estimator'].fit(x['Xtr'], x['ytr'], x['Xte'], x['yte'], **kwargs))
+                     .asap(estimator=fit)
+                     .assign_unzip('estimator', ['log', 'estimator'])
+                    )
+        return self
+
+
+    def _getParameterDictForRow(self, row):
+        '''Returns a dictionary of model parameters for one row in self.grid.
+        row: a pd.Series object (e.g. self.grid.iloc[0]).
+        '''
+        return {col: row[col] for col in self.param_grid.keys()}
+
+    
+    def getHistory(self, indexName='epoch'):
+        '''Only for Keras.
+        Returns unnested history of all models.
+        indexName: Name of index in nested history objects.
+        '''
+        history = (self.grid
+                   .asapRow(log=lambda x: (DataFrame(x['log'].history)
+                                           .reset_index()
+                                           .rename(columns={'index': indexName})))
+                   [['log']+list(self.grid_setup.columns)]
+                   .unnest('log'))
+        return history
+    
+    
+    def getHistoryCvAvg(self, metricName='val_loss', indexName='epoch'):
+        '''Only for Keras.
+        Returns history of all models, averaged over each cv fold.
+        metricName: Metric in history objects that should be used.
+        indexName: Name of index in nested history ojbects.
+        '''
+        scores = (self.getHistory(indexName)
+                  .groupby(['parConfigId']+self.cvParameters + ['epoch'])
+                  [[metricName]]
+                  .agg(['mean', 'std'])
+                  .reset_index()
+                  .sort_values([(metricName, 'mean')])
+                 )
+        return scores
