@@ -3,18 +3,21 @@ Helper functions for keras.
 """
 
 from __future__ import print_function
+
+import itertools
 from copy import deepcopy
-import numpy as np
-import pandas as pd
-from PIL import Image
-from keras.models import Model
+
 import keras
 import keras.backend as K
+import numpy as np
+import pandas as pd
+from keras.models import Model
 from keras.wrappers.scikit_learn import KerasClassifier
-import itertools
+from PIL import Image
+from sklearn.model_selection import KFold, LeaveOneGroupOut, ParameterGrid
+
 from .classification import Class_eval, Class_eval_ensemble
 from .teddybear import DataFrame
-from sklearn.model_selection import KFold, ParameterGrid, LeaveOneGroupOut
 
 
 def load_and_convert_images(filenames, size, color='L'):
@@ -477,7 +480,7 @@ class _KFoldWrapperForIterables(object):
 
 class GridSearchCVKeras(object):
     '''
-    estimator: KerasClassifier_gscv. Want to extend this to sklearn!!!!!!!!!!!!!!
+    estimator: KerasClassifierGSCV. Want to extend this to sklearn!!!!!!!!!!!!!!
     param_grid: dictionary of parameters (as in in sklearn GridSearchCV).
     cv: Number of cv folds, or KFold object.
 
@@ -485,13 +488,15 @@ class GridSearchCVKeras(object):
     Examples:
     #-----------------
     # Regular
-    gr = GridSearchCVKeras(estimat, param_grid, cv=3)
+    estimator = KerasClassifierGSCV(build_fun, verbose=1, batchsize=512, epochs=10)
+    gr = GridSearchCVKeras(estimator, param_grid, cv=3)
     gr.fit(X, y)
 
     # Leave-one-group-out:
     logo = sklearn.model_selection.LeaveOneGroupOut().split(df, groups=train['group'].values)
-    gr = GridSearchCVKeras(estimat, param_grid, cv=logo)
-    gr.fit(df.drop(['y', 'group'], axis=1), df['y'])
+    gr = GridSearchCVKeras(estimator, param_grid, cv=logo)
+    gr.fit(df.drop(['y', 'group'], axis=1), df['y'].values)
+    #-----------------
 
 
     TODO:
