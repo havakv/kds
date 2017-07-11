@@ -44,7 +44,7 @@ class DataFrame(pd.DataFrame):
         If pandas.apply later allow for returning arbitrary objects, remove this function.
         '''
         new = [row.pipe(func, *args, **kwargs) for idx, row in self.iterrows()]
-        return pd.Series(new, index=self.index)
+        return Series(new, index=self.index)
 
 
     def asap(self, **kwargs):
@@ -134,6 +134,10 @@ class DataFrame(pd.DataFrame):
         new = self if inplace else self.copy()
         new.columns = newNames
         return new
+
+    def dropcol(self, columns):
+        '''Shorthand for drop(columns, axis=1)'''
+        return self.drop(columns, axis=1)
 
     applyRow = rapply  # legacy
     asapRow = asap
@@ -232,5 +236,56 @@ class DataFrameGroupBy(pd.core.groupby.DataFrameGroupBy):
             return new.set_index(keys)
         return new[keys + [dataName]]
 
+    # def _wrap_aggregated_output(self, output, names=None):
+    #     print('agg')
+    #     return DataFrame(super()._wrap_aggregated_output(output, name))
+
+    # def _wrap_transformed_output(self, output, names=None):
+    #     print('trans')
+    #     return DataFrame(super()._wrap_transformed_output(output, names))
+
+    # def _wrap_agged_blocks(self, items, blocks):
+    #     print('block')
+    #     return DataFrame(super()._wrap_agged_blocks(items, blocks))
+
+    # def _wrap_generic_output(self, result, obj):
+    #     print('generic')
+    #     return DataFrame(super()._wrap_generic_output(result, obj))
+
+    def _gotitem(self, key, ndim, subset=None):
+        """
+        sub-classes to define
+        return a sliced object
+
+        Parameters
+        ----------
+        key : string / list of selections
+        ndim : 1,2
+            requested ndim of result
+        subset : object, default None
+            subset to act on
+        """
+        if ndim == 2:
+            if subset is None:
+                subset = self.obj
+            return DataFrameGroupBy(subset, self.grouper, selection=key,
+                                    grouper=self.grouper,
+                                    exclusions=self.exclusions,
+                                    as_index=self.as_index)
+        elif ndim == 1:
+            if subset is None:
+                subset = self.obj[key]
+            return SeriesGroupBy(subset, selection=key,
+                                 grouper=self.grouper)
+
+        raise AssertionError("invalid ndim for _gotitem")
+
+
+class SeriesGroupBy(pd.core.groupby.SeriesGroupBy):
+    pass
+    # def aggregate(self, func_or_funcs, *args, **kwargs):
+    #     print('aggreg')
+    #     return Series(super().aggregate(func_or_funcs, *args, **kwargs))
+# SeriesGroupBy = pd.core.groupby.SeriesGroupBy
 
 concat = pd.concat # Works out of the box
