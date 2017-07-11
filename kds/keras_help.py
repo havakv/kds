@@ -458,11 +458,41 @@ class KerasClassifierGSCV(object):
         return deepcopy(self)
 
 
+class _KFoldWrapperForIterables(object):
+    '''Wrapper to make a list of CV indexes behave like sklern KFold.
+    splits: Iterable of indexes for the folds. Each [(train0, val0), (train1, val1), ...].
+        Something like list(KFold(3).split(X))
+    '''
+    def __init__(self, splits):
+        self._splits = list(splits)
+        self.n_splits = len(self._splits)
+
+    def split(self, X=None, y=None, groups=None):
+        '''X, y and groups does not do anything.
+        They are only there for compatability.
+        '''
+        for split in self._splits:
+            yield split
+
+
 class GridSearchCVKeras(object):
     '''
     estimator: KerasClassifier_gscv. Want to extend this to sklearn!!!!!!!!!!!!!!
     param_grid: dictionary of parameters (as in in sklearn GridSearchCV).
     cv: Number of cv folds, or KFold object.
+
+    #-----------------
+    Examples:
+    #-----------------
+    # Regular
+    gr = GridSearchCVKeras(estimat, param_grid, cv=3)
+    gr.fit(X, y)
+
+    # Leave-one-group-out:
+    logo = sklearn.model_selection.LeaveOneGroupOut().split(df, groups=train['group'].values)
+    gr = GridSearchCVKeras(estimat, param_grid, cv=logo)
+    gr.fit(df.drop(['y', 'group'], axis=1), df['y'])
+
 
     TODO:
     - Make version that with validation set instead of cv folds.
@@ -480,8 +510,10 @@ class GridSearchCVKeras(object):
             self.cv = KFold(cv, shuffle=True)
         elif type(cv) is KFold:
             self.cv = cv
+        elif hasattr(cv, '__iter__'):
+            self.cv = _KFoldWrapperForIterables(cv)
         else:
-            raise ValueError('Need cv to be int or KFold')
+            raise ValueError('Need cv to be int, iterable or KFold')
 
         self.cvParameters = list(self.param_grid.keys())
 
@@ -497,15 +529,14 @@ class GridSearchCVKeras(object):
         self.grid_setup = self.grid_setup.merge(parConfigId, 'left', on=self.cvParameters)
         
     
-    def setupFolds(self, X, y, mapper=None, groups=None):
+    def setupFolds(self, X, y, mapper=None):
         '''Make indices for cv-folds
-        groups: Group labels for the samples used while splitting the dataset into train/test set.
         '''
-        if type(X) in [pd.DataFrame, DataFrame]:
-            return self._setupFoldsDataFrame(X, y, mapper, groups)
+        if X.__class__ in [pd.DataFrame, DataFrame]:
+            return self._setupFoldsDataFrame(X, y, mapper)
 
         raise NotImplementedError('need to implement mapper functionality')
-        splits = list(self.cv.split(X, groups=groups))
+        splits = list(self.cv.split(X))
         train, test = list(zip(*splits))
         splits = (DataFrame(dict(trainIdx=train, testIdx=test, cv_fold=range(self.cv.n_splits)))
                   .asapRow(Xtr = lambda x: X[x['trainIdx']], 
@@ -517,12 +548,11 @@ class GridSearchCVKeras(object):
                      .asapRow(estimator= lambda x: self.estimator.copy()))
         return self
         
-    def _setupFoldsDataFrame(self, X, y, mapper, groups=None):
+    def _setupFoldsDataFrame(self, X, y, mapper):
         '''Make indices for cv-folds
         mapper: sklearn_pandas.DataFrameMapper
-        groups: Group labels for the samples used while splitting the dataset into train/test set.
         '''
-        splits = list(self.cv.split(X, groups=groups))
+        splits = list(self.cv.split(X))
         trainIdx, testIdx = list(zip(*splits))
         splits = (
             DataFrame(dict(trainIdx=trainIdx, testIdx=testIdx, cv_fold=range(self.cv.n_splits)))
@@ -538,17 +568,16 @@ class GridSearchCVKeras(object):
                      .asapRow(estimator=lambda x: self.estimator.copy()))
         return self
     
-    def fit(self, X, y, mapper=None, groups=None, cvVerbose=1, **kwargs):
+    def fit(self, X, y, mapper=None, cvVerbose=1, **kwargs):
         '''Fit cv fold (full experiment).
         mapper: sklearn_pandas.DataFrameMapper
-        groups: Group labels for the samples used while splitting the dataset into train/test set.
         cvVerbose: Verbose for each fold, or something.
         **kwargs are passed to the keras fit method to overwrite such things as epochs and batch size.
         TODO: 
         - Give option epoch maybe.
         - Should be able to call fit again to do more epochs.
         '''
-        self.setupFolds(X, y, mapper, groups)
+        self.setupFolds(X, y, mapper)
 
         def fit(x):
             fit.it += 1
