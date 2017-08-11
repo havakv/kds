@@ -1,3 +1,6 @@
+'''
+Function for extending pytorch.
+'''
 import torch
 import torch.data as data
 import torch.multiprocessing as multiprocessing
