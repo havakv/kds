@@ -2,9 +2,10 @@
 Function for extending pytorch.
 '''
 import torch
-import torch.data as data
+import torch.utils.data as data
 import torch.multiprocessing as multiprocessing
 from torch.utils.data.sampler import SequentialSampler, RandomSampler, BatchSampler
+from torch.utils.data.dataloader import ExceptionWrapper
 import collections
 import sys
 import traceback
@@ -15,6 +16,7 @@ if sys.version_info[0] == 2:
 else:
     import queue
     string_classes = (str, bytes)
+
 
 
 def _worker_loop(dataset, index_queue, data_queue, collate_fn):
