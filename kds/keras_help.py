@@ -6,15 +6,17 @@ from __future__ import print_function
 
 import itertools
 from copy import deepcopy
+import numpy as np
+import pandas as pd
 
 import keras
 import keras.backend as K
-import numpy as np
-import pandas as pd
+from keras.callbacks import Callback
 from keras.models import Model
 from keras.wrappers.scikit_learn import KerasClassifier
 from PIL import Image
 from sklearn.model_selection import KFold, LeaveOneGroupOut, ParameterGrid
+from sklearn.metrics import roc_auc_score
 
 from .classification import Class_eval, Class_eval_ensemble
 from .teddybear import DataFrame
@@ -281,6 +283,29 @@ def _roc_auc(true, predictions):
     return Class_eval(true, predictions).roc_area()
 
 
+class AucLogger(Callback):
+    '''Compute AUC on validation set, for each ineterval.'''
+    def __init__(self, interval=1, batch_size=256, verbose=True):
+        super().__init__()
+        self.interval = interval
+        self.batch_size = batch_size
+        self.verbose = verbose
+        self.auc = []
+
+    def on_train_begin(self, logs={}):
+        self.nb_inputs = len(self.model.input_shape) if self.model.input_shape.__class__ == list else 1
+
+    def on_epoch_end(self, epoch, logs={}):
+        if epoch % self.interval == 0:
+            preds = self.model.predict(self.validation_data[:self.nb_inputs], 
+                                       batch_size=self.batch_size)
+            true = self.validation_data[self.nb_inputs]
+            score = roc_auc_score(true, preds)
+            if self.verbose:
+                print('val_auc:', score)
+            self.auc.append(score)
+
+
 class ModelCheckpointExt(keras.callbacks.ModelCheckpoint):
     """An extension of Keras' ModelCheckpoint. Here we can also pass a function instead of a string.
     Currently only works for 'val_auc' in addition to regular ModelCheckpoint arguments.
@@ -441,6 +466,10 @@ class KerasClassifier_lossScore(KerasClassifier):
 
 
 class KerasClassifierGSCV(object):
+    '''Wapper used in GridSearchCV.
+    build_fun: Punction that returns the keras model.
+    fitParameters: Parameters passed to the fit function.
+    '''
     def __init__(self, build_fun, **fitParameters):
         self.build_fun = build_fun
         self.fitParameters = fitParameters
@@ -523,7 +552,9 @@ class GridSearchCVKeras(object):
         self.cvParameters = list(self.param_grid.keys())
 
         self.grid_setup = DataFrame(list(ParameterGrid(dict(**self.param_grid, cv_fold=range(self.cv.n_splits)))))
-        self._addParameterConfigId()
+        if len(self.cvParameters) > 0:
+            pass
+            self._addParameterConfigId()
 
     def _addParameterConfigId(self):
         '''For each group of parameter, add parConfigId, which makes it easier to group later.'''
@@ -627,6 +658,8 @@ class GridSearchCVKeras(object):
         metricName: Metric in history objects that should be used.
         indexName: Name of index in nested history ojbects.
         '''
+        if len(self.cvParameters) == 0:
+            raise ValueError('Only works when we have cv parameters. Use getHistory() instead.')
         scores = (self.getHistory(indexName)
                   .groupby(['parConfigId']+self.cvParameters + ['epoch'])
                   [[metricName]]
