@@ -1,9 +1,17 @@
 from . import classification
-from . import keras_help
+try:
+    from . import keras_help
+except ImportError:
+    import warnings
+    warnings.warn('Could not import keras_help')
 from . import tuning
 from . import preprocessing
 from . import teddybear
-from . import pytorch_help
+try:
+    from . import pytorch_help
+except ImportError:
+    import warnings
+    warnings.warn('Could not import pytorch_help')
 
 teddyb = teddybear # Backwards compatibility
 
