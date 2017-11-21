@@ -67,7 +67,7 @@ class Class_eval(object):
         ids = df.id.as_matrix() if 'id' in df.columns else None
         return cls(df.true.as_matrix(), df.iloc[:, 1:3].as_matrix(), labels, ids)
         
-    def classification_report(self, treshold=0.5):
+    def classification_report(self, treshold=0.5, digits=3, **kwargs):
         """
         sklearn.metrics.classification_report
         
@@ -79,8 +79,8 @@ class Class_eval(object):
          - Add *args and **kwargs.
          - Use dataframe.
         """
-        print(classification_report(self.true, self.probs[:, 0] < (1-treshold), 
-                                     target_names=self.labels))
+        print(classification_report(self.true, self.probs[:, 0] < (1-treshold), target_names=self.labels),
+                                    digits=digits, **kwargs)
 
     def precision_recall_fscore_support(self, treshold=0.5, **kwargs):
         """See sklearn.metrics.precision_recall_fscore_support.
