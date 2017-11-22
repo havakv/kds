@@ -15,7 +15,7 @@ import warnings
 
 
 
-class Class_eval(object):
+class BinaryEval(object):
     """
     Class for evaluating a classifier.
     
@@ -383,3 +383,6 @@ class Platt_scaling(object):
         if self.transform == False:
             return self.lr.predict_proba(preds)
         return self.lr.predict_proba(self.transform(preds))
+
+class Class_eval(ClassEval):
+    '''Legasy'''
