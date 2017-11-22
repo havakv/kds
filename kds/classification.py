@@ -3,12 +3,15 @@ Some helper functions for evaluating classification performance.
 """
 
 from __future__ import print_function
-from sklearn.metrics import classification_report, roc_curve, auc, precision_recall_fscore_support, brier_score_loss
+from sklearn.metrics import classification_report, roc_curve, roc_auc_score, auc,\
+    precision_recall_fscore_support, brier_score_loss, accuracy_score
+from sklearn import metrics
 from sklearn.linear_model import LogisticRegression
 from sklearn.calibration import calibration_curve
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import warnings
 
 
 
@@ -100,11 +103,30 @@ class Class_eval(object):
     
     def confusion_matrix(self):
         raise NotImplemented
-    
+
+    # def recall_score(self, treshold=0.5, pos_label=1, average='binary', sample_weight=None):
+    #     return metrics.recall_score(self.true, self.probs[:, 1] > treshold, self.labels,
+    #                                 pos_label, average, sample_weight)
+
+    # def precision_score(self, treshold=0.5, pos_label=1, average='binary', sample_weight=None):
+    #     '''Sklearn precision_score'''
+    #     return metrics.precision_score(self.true, self.probs[:, 1] > treshold, self.labels,
+    #                                    pos_label, average, sample_weight)
+
+    def log_loss(self, eps=1e-15, normalize=True, sample_weight=None):
+        '''Sklearn log_loss'''
+        return metrics.log_loss(self.true, self.probs[:, 1], eps, normalize, sample_weight, 
+                                labels=None)
+
+    def roc_auc_score(self, average='macro', sample_weight=None):
+        '''Sklearn roc_auc_score.
+        '''
+        return metrics.roc_auc_score(self.true, self.probs[:, 1])
+
     def roc_area(self):
-        fp, tp, _ = roc_curve(self.true, self.probs[:, 1])
-        return auc(fp, tp)
-    
+        warnings.warn('use roc_auc_score instead')
+        return self.roc_auc_score()
+
     def roc_curve(self, legend_lab='', decimals='%0.3f', **kwargs):
         """
         Plotting roc_curve.
@@ -127,6 +149,20 @@ class Class_eval(object):
         plt.ylabel('true positive rate')
         plt.xlabel('false positive rate')
         plt.legend(loc="lower right")
+
+    def accuracy_score(self, treshold=0.5, normalize=True, sample_weight=None):
+        '''sklearn.metrics.accuracy_score
+        Accuracy classification score.
+
+        Parameters:
+            normalize : bool, optional (default=True)
+                If False, return the number of correctly classified samples.
+                Otherwise, return the fraction of correctly classified samples.
+            sample_weight : array-like of shape = [n_samples], optional.
+                Sample weights.
+        '''
+        return metrics.accuracy_score(self.true, self.probs[:, 0] < (1-treshold), normalize, sample_weight)
+
     
     def bar_prob(self, label, nb_bins=20, ref_line=True, counts=True, ax=None, title=True):
         """
