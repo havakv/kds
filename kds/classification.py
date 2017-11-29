@@ -384,5 +384,5 @@ class Platt_scaling(object):
             return self.lr.predict_proba(preds)
         return self.lr.predict_proba(self.transform(preds))
 
-class Class_eval(ClassEval):
+class Class_eval(BinaryEval):
     '''Legasy'''
